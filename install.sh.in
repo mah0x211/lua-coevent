@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "use @EVENT_MODULE@ module"
+git submodule update --init
+luarocks install deps/lua-@EVENT_MODULE@/@EVENT_MODULE@-scm-1.rockspec

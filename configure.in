@@ -1,0 +1,30 @@
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+#
+AC_PREREQ(2.61)
+AC_INIT(coevent, scm)
+
+#
+# Checks for programs.
+#
+AC_LANG_C
+
+# checking kqueue
+AC_CHECK_HEADERS( sys/event.h,
+    [ AC_SUBST([EVENT_MODULE], ["cokqueue"]) ]
+)
+# checking epoll
+AC_CHECK_HEADERS(sys/epoll.h sys/timerfd.h,
+    [ AC_SUBST([EVENT_MODULE], ["coepoll"]) ]
+)
+
+# confirm event library
+AS_IF( [test x"$EVENT_MODULE" = x"" ],
+    AC_MSG_FAILURE([kqueue/epoll not found])
+)
+
+AC_CONFIG_FILES([
+    coevent.lua \
+    install.sh
+])
+AC_OUTPUT

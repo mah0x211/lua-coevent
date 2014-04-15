@@ -1,0 +1,6 @@
+[submodule "deps/lua-coepoll"]
+	path = deps/lua-coepoll
+	url = https://github.com/mah0x211/lua-coepoll.git
+[submodule "deps/lua-cokqueue"]
+	path = deps/lua-cokqueue
+	url = https://github.com/mah0x211/lua-cokqueue.git
