@@ -25,6 +25,6 @@ AS_IF( [test x"$EVENT_MODULE" = x"" ],
 
 AC_CONFIG_FILES([
     coevent.lua \
-    install.sh
+    coevent-scm-1.rockspec
 ])
 AC_OUTPUT

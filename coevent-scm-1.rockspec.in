@@ -10,16 +10,13 @@ description = {
     maintainer = "Masatoshi Teruya"
 }
 dependencies = {
-    "lua >= 5.1"
+    "lua >= 5.1",
+    "@EVENT_MODULE@"
 }
 build = {
-    type = "command",
-    build_command = "autoreconf -ivf && ./configure",
-    install_command = "sh ./install.sh",
-    install = {
-        lua = {
-            coevent = "coevent.lua"
-        }
+    type = "builtin",
+    modules = {
+        coevent = "coevent.lua"
     }
 }
 

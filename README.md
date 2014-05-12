@@ -9,5 +9,6 @@ please see the README.md of [lua-cokqueue](https://github.com/mah0x211/lua-cokqu
 ```sh
 git clone https://github.com/mah0x211/lua-coevent.git
 cd lua-coevent
-luarocks make
-```  
+sh ./setup.sh
+luarocks make --from=http://mah0x211.github.io/rocks/
+```
