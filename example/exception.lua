@@ -46,8 +46,8 @@ local function callback( ctx, watcher, hup )
 end
 
 -- exception handler
-local function exception( err, msg, info )
-    print( 'got exception', err, msg );
+local function exception( ctx, watcher, info )
+    print( 'got exception' );
     -- show debug info
     for k,v in pairs( info ) do
         print( k, v );
