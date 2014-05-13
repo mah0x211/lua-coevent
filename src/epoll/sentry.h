@@ -69,8 +69,9 @@ static inline int sentry_unregister( sentry_t *s )
     {
         // release sentry
         lstate_unref( s->loop->L, s->ref );
+        lstate_unref( s->loop->L, s->ref_fn );
         lstate_unref( s->loop->L, s->ref_ctx );
-        s->ref = s->ref_ctx = LUA_NOREF;
+        s->ref = s->ref_fn = s->ref_ctx = LUA_NOREF;
         if( s->data ){
             close( s->fd );
             s->fd = 0;
