@@ -263,3 +263,6 @@ print( 'type ^C' );
 print( 'done', loop:run() );
 ```
 
+## TODO
+
+- reduce redundancy.
