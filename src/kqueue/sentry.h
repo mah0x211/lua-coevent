@@ -55,6 +55,11 @@ static inline int sentry_register( lua_State *L, sentry_t *s,
         // retain sentry
         s->ref = lstate_ref( L, 1 );
     }
+    else {
+        // release
+        lstate_unref( L, s->ref_fn );
+        lstate_unref( L, s->ref_ctx );
+    }
     
     return rc;
 }
