@@ -65,9 +65,6 @@ typedef struct {
 } sentry_t;
 
 
-void loop_error( loop_t *loop, int err, const char *msg, lua_State *L );
-
-
 static inline int loop_register( loop_t *loop, sentry_t *s, 
                                  struct epoll_event *evt )
 {
