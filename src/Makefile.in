@@ -1,0 +1,28 @@
+CC=@CC@
+CFLAGS=@CFLAGS@
+CPPFLAGS=-I. -I./@EVENT_SRC@ @CPPFLAGS@
+LDFLAGS=@LIBFLAG@
+LIBS=@LIBS@
+TARGET=@PACKAGE@.@LIB_EXTENSION@
+SRC=$(wildcard *.c @EVENT_SRC@/*.c)
+OBJ=$(SRC:.c=.@OBJ_EXTENSION@)
+LIBDIR=@LIBDIR@
+
+
+all: $(OBJ) $(TARGET)
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $^
+
+$(TARGET): 
+	$(CC) $(LDFLAGS) $(LIBS) -o $@ *.o
+
+install:
+	mkdir -p $(LIBDIR)
+	cp $(TARGET) $(LIBDIR)
+	rm -f *.o $(TARGET)
+
+# cleanup
+clean:
+	rm -f *.o $(TARGET)
+
