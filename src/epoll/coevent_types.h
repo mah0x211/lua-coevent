@@ -32,6 +32,7 @@
 #define ___COEVENT_TYPES___
 
 #include <sys/epoll.h>
+#include <sys/signalfd.h>
 
 
 // event types
