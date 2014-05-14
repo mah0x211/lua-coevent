@@ -32,60 +32,6 @@
 #include "sentry.h"
 
 
-static void loop_error( loop_t *loop, sentry_t *s, int err, const char *msg )
-{
-    if( loop->ref_fn < 0 ){
-        pelog( "error %d: %s", err, msg );
-    }
-    else
-    {
-        // push callback function
-        lstate_pushref( loop->L, loop->ref_fn );
-        // push context and sentry
-        lstate_pushref( loop->L, s->ref_ctx );
-        lstate_pushref( loop->L, s->ref );
-        // push error info table
-        lua_createtable( loop->L, 0, 3 );
-        lstate_num2tbl( loop->L, "errno", err );
-        lstate_str2tbl( loop->L, "message", msg );
-        
-        // get debug info
-        if( s->L )
-        {
-            lua_Debug ar;
-            
-            if( lua_getstack( s->L, 1, &ar ) == 1 && 
-                lua_getinfo( s->L, "nSl", &ar ) != 0 ){
-                // debug info
-                lua_pushstring( loop->L, "info" );
-                lua_createtable( loop->L, 0, 5 );
-                lstate_str2tbl( loop->L, "source", ar.source );
-                lstate_str2tbl( loop->L, "what", ar.what );
-                lstate_num2tbl( loop->L, "currentline", ar.currentline );
-                lstate_str2tbl( loop->L, "name", ar.name );
-                lstate_str2tbl( loop->L, "namewhat", ar.namewhat );
-                lua_rawset( loop->L, -3 );
-            }
-            else {
-                lstate_str2tbl( loop->L, "info", "could not get debug info" );
-            }
-        }
-        
-        // call error function
-        switch( lua_pcall( loop->L, 3, 0, 0 ) ){
-            case 0:
-            break;
-            // LUA_ERRRUN:
-            // LUA_ERRMEM:
-            // LUA_ERRERR:
-            default:
-                pelog( "error %d: %s (%s)", err, msg, 
-                       lua_tostring( loop->L, -1 ) );
-        }
-    }
-}
-
-
 static int run_lua( lua_State *L )
 {
     loop_t *loop = luaL_checkudata( L, 1, COLOOP_MT );
@@ -188,7 +134,7 @@ LOOP_CONTINUE:
                         break;
                         case LUA_YIELD:
                             if( !sentry_isregistered( s ) ){
-                                loop_error( 
+                                loop_exception( 
                                     loop, s, -rc, "could not yield oneshot event"
                                 );
                             }
@@ -197,7 +143,7 @@ LOOP_CONTINUE:
                         case LUA_ERRERR:
                         case LUA_ERRSYNTAX:
                         case LUA_ERRRUN:
-                            loop_error( 
+                            loop_exception( 
                                 loop, s, -rc, lua_tostring( s->L, -1 )
                             );
                             if( sentry_isregistered( s ) )
@@ -212,7 +158,7 @@ LOOP_CONTINUE:
                                     lua_pop( loop->L, 1 );
                                 }
                                 else {
-                                    loop_error( 
+                                    loop_exception( 
                                         loop, s, errno, 
                                         "could not create coroutine"
                                     );

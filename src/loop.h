@@ -78,4 +78,60 @@ static inline int loop_unregister( loop_t *loop, sentry_t *s, coevt_t *evt )
 }
 
 
+static inline void loop_exception( loop_t *loop, sentry_t *s, int err, 
+                                   const char *msg )
+{
+    if( loop->ref_fn < 0 ){
+        pelog( "error %d: %s", err, msg );
+    }
+    else
+    {
+        // push callback function
+        lstate_pushref( loop->L, loop->ref_fn );
+        // push context and sentry
+        lstate_pushref( loop->L, s->ref_ctx );
+        lstate_pushref( loop->L, s->ref );
+        // push error info table
+        lua_createtable( loop->L, 0, 3 );
+        lstate_num2tbl( loop->L, "errno", err );
+        lstate_str2tbl( loop->L, "message", msg );
+        
+        // get debug info
+        if( s->L )
+        {
+            lua_Debug ar;
+            
+            if( lua_getstack( s->L, 1, &ar ) == 1 && 
+                lua_getinfo( s->L, "nSl", &ar ) != 0 ){
+                // debug info
+                lua_pushstring( loop->L, "info" );
+                lua_createtable( loop->L, 0, 5 );
+                lstate_str2tbl( loop->L, "source", ar.source );
+                lstate_str2tbl( loop->L, "what", ar.what );
+                lstate_num2tbl( loop->L, "currentline", ar.currentline );
+                lstate_str2tbl( loop->L, "name", ar.name );
+                lstate_str2tbl( loop->L, "namewhat", ar.namewhat );
+                lua_rawset( loop->L, -3 );
+            }
+            else {
+                lstate_str2tbl( loop->L, "info", "could not get debug info" );
+            }
+        }
+        
+        // call error function
+        switch( lua_pcall( loop->L, 3, 0, 0 ) ){
+            case 0:
+            break;
+            // LUA_ERRRUN:
+            // LUA_ERRMEM:
+            // LUA_ERRERR:
+            default:
+                pelog( "error %d: %s (%s)", err, msg, 
+                       lua_tostring( loop->L, -1 ) );
+        }
+    }
+}
+
+
+
 #endif
