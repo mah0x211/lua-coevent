@@ -48,7 +48,7 @@ sentry_t *sentry_alloc( lua_State *L, loop_t *loop, const char *tname,
             // init
             s->loop = loop;
             s->ref = s->ref_fn = s->ref_ctx = LUA_NOREF;
-            s->ident = ident;
+            s->prop.ident = ident;
             // set metatable
             luaL_getmetatable( L, tname );
             lua_setmetatable( L, -2 );
@@ -85,7 +85,7 @@ int sentry_dealloc_gc( lua_State *L )
     sentry_t *s = NULL;
     
     GET_SENTRY_AND_UNREF( L, s );
-    pdealloc( s->ident );
+    pdealloc( s->prop.ident );
     
     return 0;
 }

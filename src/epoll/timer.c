@@ -56,7 +56,7 @@ static int watch_lua( lua_State *L )
         if( fd != -1 )
         {
             struct timespec cur;
-            struct itimerspec *ts = (struct itimerspec*)s->data;
+            struct itimerspec *ts = (struct itimerspec*)s->prop.data;
             
             // get current time
             clock_gettime( CLOCK_MONOTONIC, &cur );
@@ -76,14 +76,14 @@ static int watch_lua( lua_State *L )
                 
                 evt.data.ptr = (void*)s;
                 evt.events = EPOLLRDHUP|EPOLLIN;
-                if( ( s->oneshot = lua_toboolean( L, 2 ) ) ){
+                if( ( s->prop.oneshot = lua_toboolean( L, 2 ) ) ){
                     evt.events |= EPOLLONESHOT;
                 }
                 
                 // retain callback and usercontext
                 s->ref_fn = lstate_ref( L, 3 );
                 s->ref_ctx = lstate_ref( L, 4 );
-                s->fd = fd;
+                s->prop.fd = fd;
                 
                 // register event
                 if( sentry_register( L, s, &evt ) == 0 ){
@@ -91,7 +91,7 @@ static int watch_lua( lua_State *L )
                     return 1;
                 }
                 else {
-                    s->fd = 0;
+                    s->prop.fd = 0;
                     close( fd );
                 }
             }

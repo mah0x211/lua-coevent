@@ -33,37 +33,6 @@
 
 #include "coevent.h"
 
-// loop
-typedef struct {
-    lua_State *L;
-    int fd;
-    int state;
-    int ref_fn;
-    int nevs;
-    int nreg;
-    struct epoll_event *evs;
-} loop_t;
-
-
-// sentries
-typedef struct {
-    loop_t *loop;
-    lua_State *L;
-    int ref;
-    int ref_th;
-    int ref_fn;
-    int ref_ctx;
-    // target fd for epoll
-    int fd;
-    // 1 = oneshot event
-    int oneshot;
-    // pointer that allocated data by some of sentry type.
-    // this pointer must deallocate at gc.
-    // this will be 0 if sentry used external fd. (e.g. reader/writer)
-    uintptr_t data;
-    size_t rsize;
-} sentry_t;
-
 
 static inline int loop_register( loop_t *loop, sentry_t *s, 
                                  struct epoll_event *evt )
@@ -90,7 +59,7 @@ static inline int loop_register( loop_t *loop, sentry_t *s,
     }
     
     // register event
-    rc = epoll_ctl( loop->fd, EPOLL_CTL_ADD, s->fd, evt );
+    rc = epoll_ctl( loop->fd, EPOLL_CTL_ADD, s->prop.fd, evt );
     if( rc == 0 ){
         loop->nreg++;
     }
@@ -102,7 +71,7 @@ static inline int loop_register( loop_t *loop, sentry_t *s,
 static inline int loop_unregister( loop_t *loop, sentry_t *s )
 {
     struct epoll_event evt;
-    int rc = epoll_ctl( loop->fd, EPOLL_CTL_DEL, s->fd, &evt );
+    int rc = epoll_ctl( loop->fd, EPOLL_CTL_DEL, s->prop.fd, &evt );
     
     if( rc == 0 ){
         loop->nreg--;

@@ -37,4 +37,19 @@
 #define COEVT_READ      EPOLLIN
 #define COEVT_WRITE     EPOLLOUT
 
+
+typedef struct epoll_event  coevt_t;
+
+typedef struct {
+    // target fd for epoll
+    int fd;
+    // 1 = oneshot event
+    int oneshot;
+    // pointer that allocated data by some of sentry type.
+    // this pointer must deallocate at gc.
+    // this will be 0 if sentry used external fd. (e.g. reader/writer)
+    uintptr_t data;
+    size_t rsize;
+} coevt_prop_t;
+
 #endif

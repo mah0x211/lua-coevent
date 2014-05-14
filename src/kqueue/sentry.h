@@ -137,7 +137,7 @@ static inline int sentry_rw_watch( lua_State *L, const char *tname,
         s->ref_fn = lstate_ref( L, 4 );
         s->ref_ctx = lstate_ref( L, 5 );
         
-        EV_SET( &evt, s->ident, filter, flags, 0, 0, (void*)s );
+        EV_SET( &evt, s->prop.ident, filter, flags, 0, 0, (void*)s );
         // register sentry
         if( sentry_register( L, s, &evt ) == 0 ){
             lua_pushboolean( L, 1 );
@@ -162,7 +162,7 @@ static inline int sentry_rw_unwatch( lua_State *L, const char *tname,
     {
         struct kevent evt;
         
-        EV_SET( &evt, s->ident, filter, EV_DELETE, 0, 0, NULL );
+        EV_SET( &evt, s->prop.ident, filter, EV_DELETE, 0, 0, NULL );
         // deregister sentry
         if( sentry_unregister( L, s, &evt ) == 0 ){
             lua_pushboolean( L, 1 );

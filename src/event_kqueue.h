@@ -38,4 +38,11 @@
 #define COEVT_WRITE     EVFILT_WRITE
 
 
+typedef struct kevent   coevt_t;
+
+typedef struct {
+    uintptr_t ident;
+} coevt_prop_t;
+
+
 #endif

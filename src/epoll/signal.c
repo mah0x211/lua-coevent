@@ -52,7 +52,7 @@ static int watch_lua( lua_State *L )
     else
     {
         // create signalfd with sigset_t
-        int fd = signalfd( -1, (sigset_t*)s->data, SFD_NONBLOCK|SFD_CLOEXEC );
+        int fd = signalfd( -1, (sigset_t*)s->prop.data, SFD_NONBLOCK|SFD_CLOEXEC );
         
         if( fd != -1 )
         {
@@ -60,14 +60,14 @@ static int watch_lua( lua_State *L )
             
             evt.data.ptr = (void*)s;
             evt.events = EPOLLRDHUP|EPOLLIN;
-            if( ( s->oneshot = lua_toboolean( L, 2 ) ) ){
+            if( ( s->prop.oneshot = lua_toboolean( L, 2 ) ) ){
                 evt.events |= EPOLLONESHOT;
             }
             
             // retain callback and usercontext
             s->ref_fn = lstate_ref( L, 3 );
             s->ref_ctx = lstate_ref( L, 4 );
-            s->fd = fd;
+            s->prop.fd = fd;
             
             // register event
             if( sentry_register( L, s, &evt ) == 0 ){
@@ -75,7 +75,7 @@ static int watch_lua( lua_State *L )
                 return 1;
             }
             else {
-                s->fd = 0;
+                s->prop.fd = 0;
                 close( fd );
             }
         }

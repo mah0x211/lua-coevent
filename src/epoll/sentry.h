@@ -77,9 +77,9 @@ static inline int sentry_unregister( sentry_t *s )
         lstate_unref( s->loop->L, s->ref_fn );
         lstate_unref( s->loop->L, s->ref_ctx );
         s->ref = s->ref_fn = s->ref_ctx = LUA_NOREF;
-        if( s->data ){
-            close( s->fd );
-            s->fd = 0;
+        if( s->prop.data ){
+            close( s->prop.fd );
+            s->prop.fd = 0;
         }
     }
     
@@ -134,7 +134,7 @@ static inline int sentry_rw_watch( lua_State *L, const char *tname,
         
         evt.data.ptr = (void*)s;
         evt.events = event|EPOLLRDHUP;
-        if( ( s->oneshot = lua_toboolean( L, 2 ) ) ){
+        if( ( s->prop.oneshot = lua_toboolean( L, 2 ) ) ){
             evt.events |= EPOLLONESHOT;
         }
         // edge-trigger

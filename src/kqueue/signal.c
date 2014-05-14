@@ -48,7 +48,7 @@ static int watch_lua( lua_State *L )
     }
     else
     {
-        int *sigset = (int*)s->ident;
+        int *sigset = (int*)s->prop.ident;
         uint16_t flags = EV_ADD;
         struct kevent evt;
         int i = 0;
@@ -97,7 +97,7 @@ static int unwatch_lua( lua_State *L )
     if( sentry_isregistered( s ) )
     {
         int rc = 0;
-        int *sigset = (int*)s->ident;
+        int *sigset = (int*)s->prop.ident;
         struct kevent evt;
         
         while( *sigset )

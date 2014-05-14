@@ -52,6 +52,31 @@
 
 #endif
 
+// data structure
+// loop
+typedef struct {
+    lua_State *L;
+    int fd;
+    int state;
+    int ref_fn;
+    int nevs;
+    int nreg;
+    coevt_t *evs;
+} loop_t;
+
+
+// sentries
+typedef struct {
+    loop_t *loop;
+    lua_State *L;
+    // data references
+    int ref;
+    int ref_th;
+    int ref_fn;
+    int ref_ctx;
+    coevt_prop_t prop;
+} sentry_t;
+
 
 // memory alloc/dealloc
 #define palloc(t)       (t*)malloc( sizeof(t) )

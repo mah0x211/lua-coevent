@@ -34,31 +34,6 @@
 #include "coevent.h"
 
 
-// loop
-typedef struct {
-    lua_State *L;
-    int fd;
-    int state;
-    int ref_fn;
-    int nevs;
-    int nreg;
-    struct kevent *evs;
-} loop_t;
-
-
-// sentries
-typedef struct {
-    loop_t *loop;
-    lua_State *L;
-    // data references
-    int ref;
-    int ref_th;
-    int ref_fn;
-    int ref_ctx;
-    uintptr_t ident;
-} sentry_t;
-
-
 static inline int loop_register( loop_t *loop, sentry_t *s, struct kevent *evt )
 {
     int rc = -1;

@@ -48,7 +48,7 @@ static int watch_lua( lua_State *L )
     else
     {
         struct kevent evt;
-        struct timespec *ts = (struct timespec*)s->ident;
+        struct timespec *ts = (struct timespec*)s->prop.ident;
         uint16_t flags = EV_ADD;
         
         if( lua_toboolean( L, 2 ) ){
@@ -59,7 +59,7 @@ static int watch_lua( lua_State *L )
         s->ref_fn = lstate_ref( L, 3 );
         s->ref_ctx = lstate_ref( L, 4 );
         
-        EV_SET( &evt, s->ident, EVFILT_TIMER, flags, NOTE_NSECONDS, 
+        EV_SET( &evt, s->prop.ident, EVFILT_TIMER, flags, NOTE_NSECONDS, 
                 ts->tv_sec * 1000000000 + ts->tv_nsec, (void*)s );
         
         // register sentry
@@ -85,7 +85,7 @@ static int unwatch_lua( lua_State *L )
     {
         struct kevent evt;
         
-        EV_SET( &evt, s->ident, EVFILT_TIMER, EV_DELETE, 0, 0, NULL );
+        EV_SET( &evt, s->prop.ident, EVFILT_TIMER, EV_DELETE, 0, 0, NULL );
         // deregister sentry
         if( sentry_unregister( L, s, &evt ) == 0 ){
             lua_pushboolean( L, 1 );

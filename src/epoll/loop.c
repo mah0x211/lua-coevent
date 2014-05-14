@@ -148,9 +148,9 @@ LOOP_CONTINUE:
                 if( sentry_isregistered( s ) )
                 {
                     // read event data
-                    if( s->rsize ){
-                        void *rdata = alloca( s->rsize );
-                        read( s->fd, rdata, s->rsize );
+                    if( s->prop.rsize ){
+                        void *rdata = alloca( s->prop.rsize );
+                        read( s->prop.fd, rdata, s->prop.rsize );
                     }
                     
                     // check hup
@@ -168,16 +168,16 @@ LOOP_CONTINUE:
                     }
                     
                     // release sentry if oneshot
-                    if( s->oneshot )
+                    if( s->prop.oneshot )
                     {
                         // to decrement number of registered
                         loop->nreg--;
                         // release sentry
                         lstate_unref( L, s->ref );
                         s->ref = LUA_NOREF;
-                        if( s->data ){
-                            close( s->fd );
-                            s->fd = 0;
+                        if( s->prop.data ){
+                            close( s->prop.fd );
+                            s->prop.fd = 0;
                         }
                     }
                     
