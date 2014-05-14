@@ -68,7 +68,7 @@ static inline int sentry_register( lua_State *L, sentry_t *s,
 
 static inline int sentry_unregister( sentry_t *s )
 {
-    int rc = loop_unregister( s->loop, s );
+    int rc = loop_unregister( s->loop, s, NULL );
     
     if( rc == 0 )
     {
