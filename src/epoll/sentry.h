@@ -183,4 +183,7 @@ static inline int sentry_unwatch( lua_State *L, const char *tname )
     return 2;
 }
 
+#define sentry_rw_unwatch(L,tname,...)  sentry_unwatch( L, tname )
+
+
 #endif
