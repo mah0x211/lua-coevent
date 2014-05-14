@@ -105,7 +105,7 @@ static inline int sentry_rw_alloc( lua_State *L, const char *tname )
 
 
 static inline int sentry_rw_watch( lua_State *L, const char *tname, 
-                                       int16_t filter )
+                                   int16_t filter )
 {
     sentry_t *s = luaL_checkudata( L, 1, tname );
     

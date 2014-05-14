@@ -20,58 +20,21 @@
  *  THE SOFTWARE.
  *
  *
- *  writer.c
+ *  event_epoll.h
  *  lua-coevent
  *
- *  Created by Masatoshi Teruya on 14/05/13.
+ *  Created by Masatoshi Teruya on 14/05/14.
  *  Copyright 2014 Masatoshi Teruya. All rights reserved.
  *
  */
 
-#include "sentry.h"
+#ifndef ___EVENT_EPOLL___
+#define ___EVENT_EPOLL___
 
+#include <sys/epoll.h>
 
-static int watch_lua( lua_State *L )
-{
-    return sentry_rw_watch( L, COWRITER_MT, COEVT_WRITE );
-}
+// event types
+#define COEVT_READ      EPOLLIN
+#define COEVT_WRITE     EPOLLOUT
 
-
-static int unwatch_lua( lua_State *L )
-{
-    return sentry_rw_unwatch( L, COWRITER_MT, COEVT_WRITE );
-}
-
-
-static int tostring_lua( lua_State *L )
-{
-    return tostring_mt( L, COWRITER_MT );
-}
-
-
-static int alloc_lua( lua_State *L )
-{
-    return sentry_rw_alloc( L, COWRITER_MT );
-}
-
-
-LUALIB_API int luaopen_coevent_writer( lua_State *L )
-{
-    struct luaL_Reg mmethod[] = {
-        { "__gc", sentry_gc },
-        { "__tostring", tostring_lua },
-        { NULL, NULL }
-    };
-    struct luaL_Reg method[] = {
-        { "watch", watch_lua },
-        { "unwatch", unwatch_lua },
-        { NULL, NULL }
-    };
-
-    define_mt( L, COWRITER_MT, mmethod, method );
-    // add methods
-    lua_pushcfunction( L, alloc_lua );
-    
-    return 1;
-}
-
+#endif

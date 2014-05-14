@@ -33,13 +33,13 @@
 
 static int watch_lua( lua_State *L )
 {
-    return sentry_rw_watch( L, COREADER_MT, EVFILT_READ );
+    return sentry_rw_watch( L, COREADER_MT, COEVT_READ );
 }
 
 
 static int unwatch_lua( lua_State *L )
 {
-    return sentry_rw_unwatch( L, COREADER_MT, EVFILT_READ );
+    return sentry_rw_unwatch( L, COREADER_MT, COEVT_READ );
 }
 
 
