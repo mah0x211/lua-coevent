@@ -45,10 +45,10 @@
 #include "config.h"
 
 #if defined(HAVE_SYS_EVENT_H)
-#include "event_kqueue.h"
+#include "./kqueue/types.h"
 
 #elif defined(HAVE_SYS_EPOLL_H)
-#include "event_epoll.h"
+#include "./epoll/types.h"
 
 #endif
 

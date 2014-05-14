@@ -20,7 +20,7 @@
  *  THE SOFTWARE.
  *
  *
- *  event_kqueue.h
+ *  types.h
  *  lua-coevent
  *
  *  Created by Masatoshi Teruya on 14/05/14.
@@ -28,8 +28,8 @@
  *
  */
 
-#ifndef ___EVENT_KQUEUE___
-#define ___EVENT_KQUEUE___
+#ifndef ___COEVENT_TYPES___
+#define ___COEVENT_TYPES___
 
 #include <sys/event.h>
 

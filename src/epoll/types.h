@@ -20,7 +20,7 @@
  *  THE SOFTWARE.
  *
  *
- *  event_epoll.h
+ *  types.h
  *  lua-coevent
  *
  *  Created by Masatoshi Teruya on 14/05/14.
@@ -28,8 +28,8 @@
  *
  */
 
-#ifndef ___EVENT_EPOLL___
-#define ___EVENT_EPOLL___
+#ifndef ___COEVENT_TYPES___
+#define ___COEVENT_TYPES___
 
 #include <sys/epoll.h>
 
