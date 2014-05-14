@@ -41,16 +41,8 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
-
 #include "config.h"
-
-#if defined(HAVE_SYS_EVENT_H)
-#include "./kqueue/types.h"
-
-#elif defined(HAVE_SYS_EPOLL_H)
-#include "./epoll/types.h"
-
-#endif
+#include "coevent_types.h"
 
 // data structure
 // loop
