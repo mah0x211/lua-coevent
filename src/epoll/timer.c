@@ -29,10 +29,8 @@
  */
 
 #include "sentry.h"
-
-#if defined(HAVE_SYS_TIMERFD_H)
 #include <sys/timerfd.h>
-#endif
+
 
 static int watch_lua( lua_State *L )
 {
@@ -108,7 +106,24 @@ static int watch_lua( lua_State *L )
 
 static int unwatch_lua( lua_State *L )
 {
-    return sentry_unwatch( L, COTIMER_MT );
+    sentry_t *s = luaL_checkudata( L, 1, COTIMER_MT );
+    
+    if( SENTRY_IS_REGISTERED( s ) )
+    {
+        if( sentry_unregister( L, s, NULL ) == 0 ){
+            lua_pushboolean( L, 1 );
+            return 1;
+        }
+    }
+    else {
+        errno = ENOENT;
+    }
+    
+    // got error
+    lua_pushboolean( L, 0 );
+    lua_pushnumber( L, errno );
+    
+    return 2;
 }
 
 
