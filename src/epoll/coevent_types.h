@@ -33,12 +33,22 @@
 
 #include <sys/epoll.h>
 
+
 // event types
 #define COEVT_READ      EPOLLIN
 #define COEVT_WRITE     EPOLLOUT
 
 
 typedef struct epoll_event  coevt_t;
+
+#define COEVT_UDATA(evt)        ((sentry_t*)(evt)->data.ptr)
+#define COEVT_IS_ONESHOT(evt)   ((COEVT_UDATA(evt))->prop.oneshot)
+#define COEVT_IS_HUP(evt)       ((evt)->events & (EPOLLRDHUP|EPOLLHUP))
+
+
+// drain types
+#define PROP_DRAIN_SIGNAL   1
+#define PROP_DRAIN_TIMER    2
 
 typedef struct {
     // target fd for epoll
@@ -49,20 +59,35 @@ typedef struct {
     // this pointer must deallocate at gc.
     // this will be 0 if sentry used external fd. (e.g. reader/writer)
     uintptr_t data;
-    size_t rsize;
+    // drain type
+    uint8_t drain;
 } coevt_prop_t;
 
 
-#define COEVT_PROP_INIT(p,_fd,_data,_rsize) do { \
+#define COEVT_PROP_INIT(p,_fd,_data,_drain) do { \
     (p)->fd = (_fd); \
     (p)->oneshot = 0; \
     (p)->data = (_data); \
-    (p)->rsize = (_rsize); \
+    (p)->drain = (_drain); \
+}while(0)
+
+
+static uint8_t _drain_storage[sizeof( struct signalfd_siginfo )];
+
+#define COEVT_PROP_DRAIN(p) do{ \
+    switch( (p)->drain ){ \
+        case PROP_DRAIN_SIGNAL: \
+            read( (p)->fd, _drain_storage, sizeof( struct signalfd_siginfo ) ); \
+        break; \
+        case PROP_DRAIN_TIMER: \
+            read( (p)->fd, _drain_storage, sizeof( uint64_t ) ); \
+        break; \
+    } \
 }while(0)
 
 
 #define COEVT_PROP_CLEAR(p) do { \
-    if( (p)->data ){ \
+    if( (p)->fd && (p)->data ){ \
         close( (p)->fd ); \
         (p)->fd = 0; \
     } \

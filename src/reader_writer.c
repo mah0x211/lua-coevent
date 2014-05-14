@@ -44,7 +44,7 @@ static int rw_watch( lua_State *L, const char *tname, int type )
     luaL_checktype( L, 4, LUA_TFUNCTION );
     // arg#5 user-context
     
-    if( sentry_isregistered( s ) ){
+    if( SENTRY_IS_REGISTERED( s ) ){
         errno = EALREADY;
     }
     else
@@ -87,12 +87,11 @@ static int rw_unwatch( lua_State *L, const char *tname, int type )
 {
     sentry_t *s = luaL_checkudata( L, 1, tname );
     
-    if( sentry_isregistered( s ) )
+    if( SENTRY_IS_REGISTERED( s ) )
     {
         coevt_t evt;
         
         coevt_rw_init( &evt, s, type, 0, 0 );
-        // deregister sentry
         if( sentry_unregister( L, s, &evt ) == 0 ){
             lua_pushboolean( L, 1 );
             return 1;

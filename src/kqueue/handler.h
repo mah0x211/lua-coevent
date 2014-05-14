@@ -33,6 +33,17 @@
 
 #include "coevent.h"
 
+#define coevt_create()  kqueue()
+
+
+static inline int coevt_wait( loop_t *loop, int sec )
+{
+    // defaout timeout: 1 sec
+    struct timespec ts = { sec, 0 };
+    
+    return kevent( loop->fd, NULL, 0, loop->evs, (int)loop->nreg, &ts );
+}
+
 
 static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, int type, 
                                   int oneshot, int edge )

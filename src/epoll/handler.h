@@ -33,6 +33,24 @@
 
 #include "coevent.h"
 
+
+#if HAVE_EPOLL_CREATE1
+#define coevt_create()  epoll_create1(EPOLL_CLOEXEC)
+#else
+#define coevt_create()  epoll_create(1)
+#endif
+
+
+static inline int coevt_wait( loop_t *loop, int sec )
+{
+    if( sec > 0 ){
+        sec *= 1000;
+    }
+    
+    return epoll_pwait( loop->fd, loop->evs, (int)loop->nreg, sec, NULL );
+}
+
+
 static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, int type, 
                                   uint8_t oneshot, uint8_t edge )
 {

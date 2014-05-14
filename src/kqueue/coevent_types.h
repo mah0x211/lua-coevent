@@ -40,6 +40,11 @@
 
 typedef struct kevent   coevt_t;
 
+#define COEVT_UDATA(evt)        ((sentry_t*)(evt)->udata)
+#define COEVT_IS_ONESHOT(evt)   ((evt)->flags & EV_ONESHOT)
+#define COEVT_IS_HUP(evt)       ((evt)->flags & EV_EOF)
+
+
 typedef struct {
     uintptr_t ident;
 } coevt_prop_t;
@@ -50,6 +55,7 @@ typedef struct {
 }while(0)
 
 // do nothing
+#define COEVT_PROP_DRAIN(p)
 #define COEVT_PROP_CLEAR(p)
 
 #define COEVT_PROP_FREE(p) do { \

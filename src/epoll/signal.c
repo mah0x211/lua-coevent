@@ -46,7 +46,7 @@ static int watch_lua( lua_State *L )
     luaL_checktype( L, 3, LUA_TFUNCTION );
     // arg#4 user-context
     
-    if( sentry_isregistered( s ) ){
+    if( SENTRY_IS_REGISTERED( s ) ){
         errno = EALREADY;
     }
     else
@@ -136,7 +136,7 @@ static int alloc_lua( lua_State *L )
     {
         // allocate sentry
         sentry_t *s = sentry_alloc( L, loop, COSIGNAL_MT, 0, (uintptr_t)sigset, 
-                                    sizeof( struct signalfd_siginfo ) );
+                                    PROP_DRAIN_SIGNAL );
         
         if( s ){
             memcpy( (void*)sigset, &ss, sizeof( sigset_t ) );

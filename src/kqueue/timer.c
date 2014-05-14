@@ -42,7 +42,7 @@ static int watch_lua( lua_State *L )
     luaL_checktype( L, 3, LUA_TFUNCTION );
     // arg#4 user-context
     
-    if( sentry_isregistered( s ) ){
+    if( SENTRY_IS_REGISTERED( s ) ){
         errno = EALREADY;
     }
     else
@@ -81,7 +81,7 @@ static int unwatch_lua( lua_State *L )
 {
     sentry_t *s = luaL_checkudata( L, 1, COTIMER_MT );
     
-    if( sentry_isregistered( s ) )
+    if( SENTRY_IS_REGISTERED( s ) )
     {
         struct kevent evt;
         

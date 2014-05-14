@@ -45,7 +45,7 @@ static int watch_lua( lua_State *L )
     luaL_checktype( L, 3, LUA_TFUNCTION );
     // arg#4 user-context
     
-    if( sentry_isregistered( s ) ){
+    if( SENTRY_IS_REGISTERED( s ) ){
         errno = EALREADY;
     }
     else
@@ -130,7 +130,7 @@ static int alloc_lua( lua_State *L )
     {
         // allocate sentry
         sentry_t *s = sentry_alloc( L, loop, COTIMER_MT, 0, (uintptr_t)ts, 
-                                    sizeof( uint64_t ) );
+                                    PROP_DRAIN_TIMER );
         
         if( s ){
             ts->it_value = (struct timespec){ .tv_sec = 0, .tv_nsec = 0 };
