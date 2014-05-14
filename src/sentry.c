@@ -20,47 +20,40 @@
  *  THE SOFTWARE.
  *
  *
- *  handler.h
+ *  sentry.c
  *  lua-coevent
  *
- *  Created by Masatoshi Teruya on 14/05/14.
+ *  Created by Masatoshi Teruya on 14/05/13.
  *  Copyright 2014 Masatoshi Teruya. All rights reserved.
  *
  */
 
-#ifndef ___COEVENT_HANDLER___
-#define ___COEVENT_HANDLER___
-
-#include "coevent.h"
+#include "sentry.h"
 
 
-static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, int type, 
-                                  int oneshot, int edge )
+#define GET_SENTRY_AND_UNREF(L,s) do { \
+    s = lua_touserdata( L, 1 ); \
+    lstate_unref( L, s->ref_th ); \
+    lstate_unref( L, s->ref_fn ); \
+    lstate_unref( L, s->ref_ctx ); \
+}while(0)
+
+int sentry_gc( lua_State *L )
 {
-    uint16_t flags = EV_ADD;
+    sentry_t *s = NULL;
     
-    if( oneshot ){
-        flags |= EV_ONESHOT;
-    }
-    // edge-trigger
-    if( edge ){
-        flags |= EV_CLEAR;
-    }
+    GET_SENTRY_AND_UNREF( L, s );
     
-    EV_SET( evt, s->prop.ident, type, flags, 0, 0, (void*)s );
+    return 0;
 }
 
-
-static inline int coevt_register( loop_t *loop, sentry_t *s, coevt_t *evt )
+int sentry_dealloc_gc( lua_State *L )
 {
-    return kevent( loop->fd, evt, 1, NULL, 0, NULL );
+    sentry_t *s = NULL;
+    
+    GET_SENTRY_AND_UNREF( L, s );
+    COEVT_PROP_FREE( &s->prop );
+    
+    return 0;
 }
 
-static inline int coevt_unregister( loop_t *loop, sentry_t *s, coevt_t *evt )
-{
-    evt->flags = EV_DELETE;
-    return kevent( loop->fd, evt, 1, NULL, 0, NULL );
-}
-
-
-#endif

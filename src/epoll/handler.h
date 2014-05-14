@@ -33,6 +33,21 @@
 
 #include "coevent.h"
 
+static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, int type, 
+                                  uint8_t oneshot, uint8_t edge )
+{
+    evt->data.ptr = (void*)s;
+    evt->events = type|EPOLLRDHUP;
+    if( oneshot ){
+        s->prop.oneshot = 1;
+        evt->events |= EPOLLONESHOT;
+    }
+    // edge-trigger
+    if( edge ){
+        evt->events |= EPOLLET;
+    }
+}
+
 
 static inline int coevt_register( loop_t *loop, sentry_t *s, coevt_t *evt )
 {

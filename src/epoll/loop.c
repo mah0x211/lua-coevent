@@ -163,7 +163,7 @@ LOOP_CONTINUE:
                                         "could not create coroutine"
                                     );
                                     // release sentry
-                                    sentry_unregister( s );
+                                    sentry_unregister( L, s, evt );
                                 }
                             }
                         break;
@@ -171,7 +171,7 @@ LOOP_CONTINUE:
                 }
                 // remove unregistered sentry
                 else {
-                    sentry_unregister( s );
+                    sentry_unregister( L, s, evt );
                 }
             }
         }

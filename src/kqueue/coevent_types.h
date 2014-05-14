@@ -45,4 +45,17 @@ typedef struct {
 } coevt_prop_t;
 
 
+#define COEVT_PROP_INIT(p,_ident,...) do { \
+    (p)->ident = (_ident); \
+}while(0)
+
+// do nothing
+#define COEVT_PROP_CLEAR(p)
+
+#define COEVT_PROP_FREE(p) do { \
+    COEVT_PROP_CLEAR(p); \
+    pdealloc( (p)->ident ); \
+}while(0)
+
+
 #endif

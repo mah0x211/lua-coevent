@@ -52,4 +52,27 @@ typedef struct {
     size_t rsize;
 } coevt_prop_t;
 
+
+#define COEVT_PROP_INIT(p,_fd,_data,_rsize) do { \
+    (p)->fd = (_fd); \
+    (p)->oneshot = 0; \
+    (p)->data = (_data); \
+    (p)->rsize = (_rsize); \
+}while(0)
+
+
+#define COEVT_PROP_CLEAR(p) do { \
+    if( (p)->data ){ \
+        close( (p)->fd ); \
+        (p)->fd = 0; \
+    } \
+}while(0)
+
+
+#define COEVT_PROP_FREE(p) do { \
+    COEVT_PROP_CLEAR(p); \
+    pdealloc( (p)->data ); \
+}while(0)
+
+
 #endif
