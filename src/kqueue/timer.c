@@ -64,16 +64,14 @@ static int watch_lua( lua_State *L )
         
         // register sentry
         if( sentry_register( L, s, &evt ) == 0 ){
-            lua_pushboolean( L, 1 );
-            return 1;
+            return 0;
         }
     }
     
     // got error
-    lua_pushboolean( L, 0 );
     lua_pushnumber( L, errno );
     
-    return 2;
+    return 1;
 }
 
 
@@ -88,8 +86,7 @@ static int unwatch_lua( lua_State *L )
         EV_SET( &evt, s->prop.ident, EVFILT_TIMER, EV_DELETE, 0, 0, NULL );
         // deregister sentry
         if( sentry_unregister( L, s, &evt ) == 0 ){
-            lua_pushboolean( L, 1 );
-            return 1;
+            return 0;
         }
     }
     else {
@@ -97,10 +94,9 @@ static int unwatch_lua( lua_State *L )
     }
 
     // got error
-    lua_pushboolean( L, 0 );
     lua_pushnumber( L, errno );
     
-    return 2;
+    return 1;
 }
 
 

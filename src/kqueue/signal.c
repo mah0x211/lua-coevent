@@ -71,8 +71,7 @@ static int watch_lua( lua_State *L )
             i++;
         }
         
-        lua_pushboolean( L, 1 );
-        return 1;
+        return 0;
         
 REGISTER_FAILURE:
         while( --i <= 0 ){
@@ -83,10 +82,9 @@ REGISTER_FAILURE:
     }
     
     // got error
-    lua_pushboolean( L, 0 );
     lua_pushnumber( L, errno );
     
-    return 2;
+    return 1;
 }
 
 
@@ -111,8 +109,7 @@ static int unwatch_lua( lua_State *L )
         }
         
         if( !rc ){
-            lua_pushboolean( L, 1 );
-            return 1;
+            return 0;
         }
     }
     else {
@@ -120,10 +117,9 @@ static int unwatch_lua( lua_State *L )
     }
 
     // got error
-    lua_pushboolean( L, 0 );
     lua_pushnumber( L, errno );
     
-    return 2;
+    return 1;
 }
 
 

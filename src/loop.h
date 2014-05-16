@@ -46,9 +46,9 @@ static inline int loop_register( loop_t *loop, sentry_t *s, coevt_t *evt )
     }
     else if( ( loop->nreg + 1 ) > loop->nevs )
     {
+        // realloc event container
         coevt_t *evs = prealloc( (size_t)loop->nevs + 1, coevt_t, loop->evs );
         
-        // realloc event container
         if( !evs ){
             return rc;
         }

@@ -59,16 +59,14 @@ static int rw_watch( lua_State *L, const char *tname, int type )
         s->ref_ctx = lstate_ref( L, 5 );
         // register sentry
         if( sentry_register( L, s, &evt ) == 0 ){
-            lua_pushboolean( L, 1 );
-            return 1;
+            return 0;
         }
     }
     
     // got error
-    lua_pushboolean( L, 0 );
     lua_pushnumber( L, errno );
     
-    return 2;
+    return 1;
 }
 
 static int reader_watch_lua( lua_State *L )
@@ -93,8 +91,7 @@ static int rw_unwatch( lua_State *L, const char *tname, int type )
         
         coevt_rw_init( &evt, s, type, 0, 0 );
         if( sentry_unregister( L, s, &evt ) == 0 ){
-            lua_pushboolean( L, 1 );
-            return 1;
+            return 0;
         }
     }
     else {
@@ -102,10 +99,9 @@ static int rw_unwatch( lua_State *L, const char *tname, int type )
     }
     
     // got error
-    lua_pushboolean( L, 0 );
     lua_pushnumber( L, errno );
     
-    return 2;
+    return 1;
 }
 
 static int reader_unwatch_lua( lua_State *L )

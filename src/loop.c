@@ -183,13 +183,12 @@ LOOP_CONTINUE:
     }
     
 LOOP_DONE:
-    if( errno ){
-        lua_pushboolean( L, 0 );
-        lua_pushinteger( L, errno );
-        return 2;
+    if( errno == 0 ){
+        return 0;
     }
     
-    lua_pushboolean( L, 1 );
+    // got error
+    lua_pushinteger( L, errno );
     
     return 1;
 }

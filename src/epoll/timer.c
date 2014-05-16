@@ -85,8 +85,7 @@ static int watch_lua( lua_State *L )
                 
                 // register event
                 if( sentry_register( L, s, &evt ) == 0 ){
-                    lua_pushboolean( L, 1 );
-                    return 1;
+                    return 0;
                 }
                 else {
                     s->prop.fd = 0;
@@ -97,10 +96,9 @@ static int watch_lua( lua_State *L )
     }
     
     // got error
-    lua_pushboolean( L, 0 );
     lua_pushnumber( L, errno );
     
-    return 2;
+    return 1;
 }
 
 
@@ -111,8 +109,7 @@ static int unwatch_lua( lua_State *L )
     if( SENTRY_IS_REGISTERED( s ) )
     {
         if( sentry_unregister( L, s, NULL ) == 0 ){
-            lua_pushboolean( L, 1 );
-            return 1;
+            return 0;
         }
     }
     else {
@@ -120,10 +117,9 @@ static int unwatch_lua( lua_State *L )
     }
     
     // got error
-    lua_pushboolean( L, 0 );
     lua_pushnumber( L, errno );
     
-    return 2;
+    return 1;
 }
 
 
