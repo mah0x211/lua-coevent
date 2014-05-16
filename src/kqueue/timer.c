@@ -84,19 +84,14 @@ static int unwatch_lua( lua_State *L )
         struct kevent evt;
         
         EV_SET( &evt, s->prop.ident, EVFILT_TIMER, EV_DELETE, 0, 0, NULL );
-        // deregister sentry
-        if( sentry_unregister( L, s, &evt ) == 0 ){
-            return 0;
+        if( sentry_unregister( L, s, &evt ) != 0 ){
+            // got error
+            lua_pushnumber( L, errno );
+            return 1;
         }
     }
-    else {
-        errno = ENOENT;
-    }
-
-    // got error
-    lua_pushnumber( L, errno );
     
-    return 1;
+    return 0;
 }
 
 

@@ -88,20 +88,14 @@ static int unwatch_lua( lua_State *L )
 {
     sentry_t *s = luaL_checkudata( L, 1, COSIGNAL_MT );
     
-    if( SENTRY_IS_REGISTERED( s ) )
-    {
-        if( sentry_unregister( L, s, NULL ) == 0 ){
-            return 0;
-        }
-    }
-    else {
-        errno = ENOENT;
+    if( SENTRY_IS_REGISTERED( s ) && 
+        sentry_unregister( L, s, NULL ) != 0 ){
+        // got error
+        lua_pushnumber( L, errno );
+        return 1;
     }
     
-    // got error
-    lua_pushnumber( L, errno );
-    
-    return 1;
+    return 0;
 }
 
 

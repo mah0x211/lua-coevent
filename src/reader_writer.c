@@ -90,18 +90,14 @@ static int rw_unwatch( lua_State *L, const char *tname, int type )
         coevt_t evt;
         
         coevt_rw_init( &evt, s, type, 0, 0 );
-        if( sentry_unregister( L, s, &evt ) == 0 ){
-            return 0;
+        if( sentry_unregister( L, s, &evt ) != 0 ){
+            // got error
+            lua_pushnumber( L, errno );
+            return 1;
         }
     }
-    else {
-        errno = ENOENT;
-    }
     
-    // got error
-    lua_pushnumber( L, errno );
-    
-    return 1;
+    return 0;
 }
 
 static int reader_unwatch_lua( lua_State *L )

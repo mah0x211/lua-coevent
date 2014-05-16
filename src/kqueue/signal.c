@@ -108,18 +108,14 @@ static int unwatch_lua( lua_State *L )
             sigset++;
         }
         
-        if( !rc ){
-            return 0;
+        // got error
+        if( rc ){
+            lua_pushnumber( L, errno );
+            return 1;
         }
     }
-    else {
-        errno = ENOENT;
-    }
-
-    // got error
-    lua_pushnumber( L, errno );
     
-    return 1;
+    return 0;
 }
 
 
