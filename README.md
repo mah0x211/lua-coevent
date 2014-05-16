@@ -30,7 +30,7 @@ all function will throw lua exception if an invalid argument is passed. (usually
 
 **Methods**
 
-- ok, errno = loop:run( forever:boolean, timeout:number )
+- errno = loop:run( forever:boolean, timeout:number )
 - ok = loop:stop()
 
 
@@ -42,8 +42,8 @@ all function will throw lua exception if an invalid argument is passed. (usually
 
 **Methods**
 
-- ok, errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
-- ok, errno = watcher:unwatch()
+- errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
+- errno = watcher:unwatch()
 
 
 **Example**
@@ -83,8 +83,8 @@ print( 'done', loop:run() );
 
 **Methods**
 
-- ok, errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
-- ok, errno = watcher:unwatch()
+- errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
+- errno = watcher:unwatch()
 
 
 **Example**
@@ -120,8 +120,8 @@ print( 'done', loop:run() );
 
 **Methods**
 
-- ok, errno = watcher:watch( oneshot:boolean, edgeTrigger:boolean, callback:function, context:[any type] )
-- ok, errno = watcher:unwatch()
+- errno = watcher:watch( oneshot:boolean, edgeTrigger:boolean, callback:function, context:[any type] )
+- errno = watcher:unwatch()
 
 
 **Example**
@@ -157,8 +157,8 @@ print( 'done', loop:run() );
 
 **Methods**
 
-- ok, errno = watcher:watch( oneshot:boolean, edgeTrigger:boolean, callback:function, context:[any type] )
-- ok, errno = watcher:unwatch()
+- errno = watcher:watch( oneshot:boolean, edgeTrigger:boolean, callback:function, context:[any type] )
+- errno = watcher:unwatch()
 
 
 **Example**
