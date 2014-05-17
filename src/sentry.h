@@ -89,7 +89,6 @@ static inline void sentry_release( lua_State *L, sentry_t *s )
     lstate_unref( L, s->ref_fn );
     lstate_unref( L, s->ref_ctx );
     s->ref = s->ref_fn = s->ref_ctx = LUA_NOREF;
-    COEVT_PROP_CLEAR( &s->prop );
 }
 
 static inline int sentry_register( lua_State *L, sentry_t *s, coevt_t *evs )
@@ -105,6 +104,7 @@ static inline int sentry_register( lua_State *L, sentry_t *s, coevt_t *evs )
         // release
         lstate_unref( L, s->ref_fn );
         lstate_unref( L, s->ref_ctx );
+        s->ref_fn = s->ref_ctx = LUA_NOREF;
     }
     
     return rc;
@@ -114,8 +114,9 @@ static inline int sentry_unregister( lua_State *L, sentry_t *s, coevt_t *evt )
 {
     int rc = loop_unregister( s->loop, s, evt );
     
+    sentry_release( L, s );
     if( rc == 0 ){
-        sentry_release( L, s );
+        COEVT_PROP_CLEAR( &s->prop );
     }
     
     return rc;

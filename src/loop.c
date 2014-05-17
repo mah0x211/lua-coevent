@@ -118,6 +118,7 @@ LOOP_CONTINUE:
                         // to decrement number of registered
                         loop->nreg--;
                         sentry_release( L, s );
+                        COEVT_PROP_CLEAR( &s->prop );
                     }
                     
                     // run on coroutine
