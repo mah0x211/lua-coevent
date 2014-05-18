@@ -109,16 +109,9 @@ LOOP_CONTINUE:
                         narg = 0;
                     }
                     
-                    // unregister hup sentry
-                    if( hup ){
+                    // unregister hup/oneshot sentry
+                    if( hup || COEVT_IS_ONESHOT( evt ) ){
                         sentry_unregister( L, s, evt );
-                    }
-                    // release oneshot sentry
-                    else if( COEVT_IS_ONESHOT( evt ) ){
-                        // to decrement number of registered
-                        loop->nreg--;
-                        sentry_release( L, s );
-                        COEVT_PROP_CLEAR( &s->prop );
                     }
                     
                     // run on coroutine
