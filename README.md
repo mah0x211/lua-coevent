@@ -116,11 +116,11 @@ print( 'done', loop:run() );
 
 **Functions**
 
-- watcher, errno = coevent.reader( loop, fd:number )
+- watcher, errno = coevent.reader( loop, fd:number [, edgeTrigger:boolean] )
 
 **Methods**
 
-- errno = watcher:watch( oneshot:boolean, edgeTrigger:boolean, callback:function, context:[any type] )
+- errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
 - errno = watcher:unwatch()
 
 
@@ -140,11 +140,11 @@ end
 -- create loop
 local loop = event.loop();
 -- create io watcher: 0 = stdin
-local watcher = event.reader( loop, 0 );
 local oneshot = false;
 local edgeTrigger = true;
+local watcher = event.reader( loop, 0, edgeTrigger );
 
-watcher:watch( oneshot, edgeTrigger, callback, { count = 0 } );
+watcher:watch( oneshot, callback, { count = 0 } );
 print( 'type some keys then press enter.' );
 print( 'done', loop:run() );
 ```
@@ -153,11 +153,11 @@ print( 'done', loop:run() );
 
 **Functions**
 
-- watcher, errno = coevent.writer( loop, fd:number )
+- watcher, errno = coevent.writer( loop, fd:number [, edgeTrigger:boolean] )
 
 **Methods**
 
-- errno = watcher:watch( oneshot:boolean, edgeTrigger:boolean, callback:function, context:[any type] )
+- errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
 - errno = watcher:unwatch()
 
 
@@ -177,11 +177,11 @@ end
 -- create loop
 local loop = event.loop();
 -- create io watcher: 1 = stdout
-local watcher = event.writer( loop, 1 );
 local oneshot = false;
 local edgeTrigger = true;
+local watcher = event.writer( loop, 1, edgeTrigger );
 
-watcher:watch( oneshot, edgeTrigger, callback, { count = 0 } );
+watcher:watch( oneshot, callback, { count = 0 } );
 print( 'done', loop:run() );
 ```
 
