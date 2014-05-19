@@ -132,6 +132,7 @@ static int rw_alloc( lua_State *L, const char *tname )
         if( s && sentry_refs_init( L, &s->refs ) == 0 ){
             s->ident = fd;
             s->trigger = trigger;
+            COREFS_DRAIN_INIT( &s->refs, 0, 0 );
             return 1;
         }
     }

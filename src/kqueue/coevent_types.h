@@ -56,6 +56,7 @@ typedef uint16_t            coevt_flag_t;
 
 // do nothing
 #define COREFS_DRAIN_DEFS()
+#define COREFS_DRAIN_INIT(...)
 #define COREFS_DRAIN_DATA(...)
 
 
