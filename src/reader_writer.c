@@ -38,11 +38,9 @@ static int rw_watch( lua_State *L, const char *tname, int type )
     // check arguments
     // arg#2 oneshot
     luaL_checktype( L, 2, LUA_TBOOLEAN );
-    // arg#3 edge-trigger
-    luaL_checktype( L, 3, LUA_TBOOLEAN );
-    // arg#4 callback function
-    luaL_checktype( L, 4, LUA_TFUNCTION );
-    // arg#5 user-context
+    // arg#3 callback function
+    luaL_checktype( L, 3, LUA_TFUNCTION );
+    // arg#4 user-context
     
     if( COREFS_IS_REFERENCED( &s->refs ) ){
         errno = EALREADY;
@@ -52,13 +50,10 @@ static int rw_watch( lua_State *L, const char *tname, int type )
         coevt_t evt;
         
         // retain callback and usercontext
-        s->refs.fn = lstate_ref( L, 4 );
-        s->refs.ctx = lstate_ref( L, 5 );
-        
-        s->refs.oneshot = lua_toboolean( L, 2 );
-        coevt_rw_init( &evt, s, type, (uint8_t)s->refs.oneshot, 
-                       (uint8_t)lua_toboolean( L, 3 ) );
-        
+        s->refs.fn = lstate_ref( L, 3 );
+        s->refs.ctx = lstate_ref( L, 4 );
+        s->refs.oneshot = lua_toboolean( L, 2 ) ? COEVT_FLG_ONESHOT : 0;
+        coevt_rw_init( &evt, s, type, s->trigger|s->refs.oneshot );
         // register sentry
         if( sentry_register( L, s, &evt ) == 0 ){
             return 0;
@@ -91,7 +86,7 @@ static int rw_unwatch( lua_State *L, const char *tname, int type )
     {
         coevt_t evt;
         
-        coevt_rw_init( &evt, s, type, 0, 0 );
+        coevt_rw_init( &evt, s, type, 0 );
         if( sentry_unregister( L, s, &evt ) != 0 ){
             // got error
             lua_pushnumber( L, errno );
@@ -117,6 +112,13 @@ static int rw_alloc( lua_State *L, const char *tname )
 {
     loop_t *loop = luaL_checkudata( L, 1, COLOOP_MT );
     int fd = luaL_checkint( L, 2 );
+    coevt_flag_t trigger = 0;
+    
+    // arg#3 edge-trigger (default level-trigger)
+    if( !lua_isnoneornil( L, 3 ) ){
+        luaL_checktype( L, 3, LUA_TBOOLEAN );
+        trigger = lua_toboolean( L, 3 ) ? COEVT_FLG_EDGE : 0;
+    }
     
     // check argument
     if( fd < 0 || fd > INT_MAX ){
@@ -125,10 +127,11 @@ static int rw_alloc( lua_State *L, const char *tname )
     // allocate sentry
     else
     {
-        sentry_t *s = sentry_alloc( L, loop, tname );
+        sentry_t *s = sentry_alloc( L, loop, sentry_t, tname );
         
         if( s && sentry_refs_init( L, &s->refs ) == 0 ){
             s->ident = fd;
+            s->trigger = trigger;
             return 1;
         }
     }

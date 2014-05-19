@@ -54,14 +54,10 @@ static int watch_lua( lua_State *L )
         // retain callback and usercontext
         s->refs.fn = lstate_ref( L, 3 );
         s->refs.ctx = lstate_ref( L, 4 );
+        s->refs.oneshot = lua_toboolean( L, 2 ) ? COEVT_FLG_ONESHOT : 0;
         
-        s->refs.oneshot = lua_toboolean( L, 2 );
-        if( s->refs.oneshot ){
-            flags |= EV_ONESHOT;
-        }
-        
-        EV_SET( &evt, s->ident, EVFILT_TIMER, flags, NOTE_NSECONDS, 
-                ts->tv_sec * 1000000000 + ts->tv_nsec, (void*)s );
+        EV_SET( &evt, s->ident, EVFILT_TIMER, flags|s->refs.oneshot, 
+                NOTE_NSECONDS, ts->tv_sec * 1000000000 + ts->tv_nsec, (void*)s);
         
         // register sentry
         if( sentry_register( L, s, &evt ) == 0 ){
@@ -112,7 +108,7 @@ static int alloc_lua( lua_State *L )
     if( ts )
     {
         // allocate sentry
-        sentry_t *s = sentry_alloc( L, loop, COTIMER_MT );
+        sentry_t *s = sentry_alloc( L, loop, sentry_t, COTIMER_MT );
         
         if( s && sentry_refs_init( L, &s->refs ) == 0 ){
             s->ident = (coevt_ident_t)ts;

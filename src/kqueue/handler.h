@@ -46,19 +46,9 @@ static inline int coevt_wait( loop_t *loop, int sec )
 
 
 static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, int type, 
-                                  int oneshot, int edge )
+                                  coevt_flag_t flg )
 {
-    uint16_t flags = EV_ADD;
-    
-    if( oneshot ){
-        flags |= EV_ONESHOT;
-    }
-    // edge-trigger
-    if( edge ){
-        flags |= EV_CLEAR;
-    }
-    
-    EV_SET( evt, s->ident, type, flags, 0, 0, (void*)s );
+    EV_SET( evt, s->ident, type, EV_ADD|flg, 0, 0, (void*)s );
 }
 
 

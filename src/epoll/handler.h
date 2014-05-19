@@ -52,17 +52,10 @@ static inline int coevt_wait( loop_t *loop, int sec )
 
 
 static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, int type, 
-                                  uint8_t oneshot, uint8_t edge )
+                                  coevt_flag_t flg )
 {
     evt->data.ptr = (void*)s;
-    evt->events = (uint32_t)type|EPOLLRDHUP;
-    if( oneshot ){
-        evt->events |= EPOLLONESHOT;
-    }
-    // edge-trigger
-    if( edge ){
-        evt->events |= EPOLLET;
-    }
+    evt->events = (coevt_flag_t)type|flg|EPOLLRDHUP;
 }
 
 

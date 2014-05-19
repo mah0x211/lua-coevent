@@ -36,12 +36,18 @@
 #include <sys/timerfd.h>
 
 
+// event flags
+#define COEVT_FLG_ONESHOT   EPOLLONESHOT
+#define COEVT_FLG_EDGE      EPOLLET
+
 // event types
-#define COEVT_READ      EPOLLIN
-#define COEVT_WRITE     EPOLLOUT
+#define COEVT_READ          EPOLLIN
+#define COEVT_WRITE         EPOLLOUT
 
 typedef struct epoll_event  coevt_t;
 typedef int                 coevt_ident_t;
+typedef uint32_t            coevt_flag_t;
+
 
 #define COEVT_UDATA(evt)    ((sentry_t*)(evt)->data.ptr)
 #define COEVT_IS_HUP(evt)   ((evt)->events & (EPOLLRDHUP|EPOLLHUP))

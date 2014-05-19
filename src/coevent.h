@@ -58,21 +58,22 @@ typedef struct {
 
 
 // sentries
-
 typedef struct {
     lua_State *L;
     int th;
     int fn;
     int ctx;
-    // 1 = oneshot event
-    int oneshot;
+    // oneshot flag
+    coevt_flag_t oneshot;
     // drain data
     COREFS_DRAIN_DEFS();
 } sentry_refs_t;
 
 
 typedef struct {
+    int type;
     int ref;
+    coevt_flag_t trigger;
     coevt_ident_t ident;
     loop_t *loop;
     sentry_refs_t refs;

@@ -63,17 +63,14 @@ static int watch_lua( lua_State *L )
         {
             struct epoll_event evt;
             
-            evt.data.ptr = (void*)s;
-            evt.events = EPOLLRDHUP|EPOLLIN;
-            s->refs.oneshot = lua_toboolean( L, 2 );
-            if( s->refs.oneshot ){
-                evt.events |= EPOLLONESHOT;
-            }
-            
             // retain callback and usercontext
             s->refs.fn = lstate_ref( L, 3 );
             s->refs.ctx = lstate_ref( L, 4 );
+            s->refs.oneshot = lua_toboolean( L, 2 ) ? COEVT_FLG_ONESHOT : 0;
             
+            evt.data.ptr = (void*)s;
+            evt.events = EPOLLRDHUP|EPOLLIN|s->refs.oneshot;
+
             // register event
             if( sentry_register( L, s, &evt ) == 0 ){
                 return 0;
@@ -127,7 +124,7 @@ static int alloc_lua( lua_State *L )
         if( ts )
         {
             // allocate sentry
-            sentry_t *s = sentry_alloc( L, loop, COTIMER_MT );
+            sentry_t *s = sentry_alloc( L, loop, sentry_t, COTIMER_MT );
             
             if( s && sentry_refs_init( L, &s->refs ) == 0 ){
                 s->ident = (coevt_ident_t)fd;

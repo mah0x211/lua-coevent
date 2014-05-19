@@ -73,22 +73,19 @@ static inline void sentry_refs_release( lua_State *L, sentry_refs_t *refs )
 int sentry_gc( lua_State *L );
 int sentry_dealloc_gc( lua_State *L );
 
-static inline sentry_t *sentry_alloc( lua_State *L, loop_t *loop,
-                                       const char *tname )
-{
-    // allocate sentry data
-    sentry_t *s = lua_newuserdata( L, sizeof( sentry_t ) );
-    
-    if( s ){
-        s->ref = LUA_NOREF;
-        s->ident = 0;
-        s->loop = loop;
-        // set metatable
-        lstate_setmetatable( L, tname );
-    }
-    
-    return s;
-}
+// allocate sentry data
+#define sentry_alloc(L,loop,t,tname)({ \
+    t *_s = (t*)lua_newuserdata( L, sizeof(t) ); \
+    if(_s){ \
+        _s->type = sizeof(t); \
+        _s->ref = LUA_NOREF; \
+        _s->trigger = 0; \
+        _s->ident = 0; \
+        _s->loop = loop; \
+        lstate_setmetatable( L, tname ); \
+    } \
+    _s; \
+})
 
 
 static inline void sentry_release( lua_State *L, sentry_t *s )
