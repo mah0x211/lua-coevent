@@ -44,19 +44,21 @@ static int rw_watch( lua_State *L, const char *tname, int type )
     luaL_checktype( L, 4, LUA_TFUNCTION );
     // arg#5 user-context
     
-    if( SENTRY_IS_REGISTERED( s ) ){
+    if( COREFS_IS_REFERENCED( &s->refs ) ){
         errno = EALREADY;
     }
     else
     {
         coevt_t evt;
         
-        coevt_rw_init( &evt, s, type, lua_toboolean( L, 2 ), 
-                       lua_toboolean( L, 3 ) );
-        
         // retain callback and usercontext
-        s->ref_fn = lstate_ref( L, 4 );
-        s->ref_ctx = lstate_ref( L, 5 );
+        s->refs.fn = lstate_ref( L, 4 );
+        s->refs.ctx = lstate_ref( L, 5 );
+        
+        s->refs.oneshot = lua_toboolean( L, 2 );
+        coevt_rw_init( &evt, s, type, (uint8_t)s->refs.oneshot, 
+                       (uint8_t)lua_toboolean( L, 3 ) );
+        
         // register sentry
         if( sentry_register( L, s, &evt ) == 0 ){
             return 0;
@@ -85,7 +87,7 @@ static int rw_unwatch( lua_State *L, const char *tname, int type )
 {
     sentry_t *s = luaL_checkudata( L, 1, tname );
     
-    if( SENTRY_IS_REGISTERED( s ) )
+    if( COREFS_IS_REFERENCED( &s->refs ) )
     {
         coevt_t evt;
         
@@ -114,16 +116,21 @@ static int writer_unwatch_lua( lua_State *L )
 static int rw_alloc( lua_State *L, const char *tname )
 {
     loop_t *loop = luaL_checkudata( L, 1, COLOOP_MT );
-    lua_Integer fd = luaL_checkinteger( L, 2 );
-    sentry_t *s = NULL;
+    int fd = luaL_checkint( L, 2 );
     
     // check argument
     if( fd < 0 || fd > INT_MAX ){
         return luaL_error( L, "fd value range must be 0 to %d", INT_MAX );
     }
     // allocate sentry
-    else if( ( s = sentry_alloc( L, loop, tname, fd, 0, 0 ) ) ){
-        return 1;
+    else
+    {
+        sentry_t *s = sentry_alloc( L, loop, tname );
+        
+        if( s && sentry_refs_init( L, &s->refs ) == 0 ){
+            s->ident = fd;
+            return 1;
+        }
     }
     
     // got error

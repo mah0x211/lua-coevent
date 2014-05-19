@@ -33,62 +33,69 @@
 
 #include "loop.h"
 
+#define COREFS_IS_REFERENCED(refs) ((refs)->fn > LUA_REFNIL)
+#define COREFS_IS_ONESHOT(refs)    ((refs)->oneshot)
 
-#define SENTRY_INIT_ARG 2
+// release coroutine
+#define COREFS_RELEASE_THREAD(L,refs) do { \
+    lstate_unref( L, (refs)->th ); \
+    (refs)->th = LUA_NOREF; \
+}while(0)
+
+
+static inline int sentry_refs_init( lua_State *L, sentry_refs_t *refs )
+{
+    // create coroutine
+    refs->L = lua_newthread( L );
+    if( refs->L ){
+        // retain coroutine
+        refs->th = lstate_ref( L, -1 );
+        lua_pop( L, 1 );
+        refs->oneshot = 0;
+        refs->fn = refs->ctx = LUA_NOREF;
+        
+        return 0;
+    }
+    
+    return -1;
+}
+
+
+static inline void sentry_refs_release( lua_State *L, sentry_refs_t *refs )
+{
+    lstate_unref( L, refs->fn );
+    lstate_unref( L, refs->ctx );
+    refs->fn = refs->ctx = LUA_NOREF;
+}
+
 
 
 int sentry_gc( lua_State *L );
 int sentry_dealloc_gc( lua_State *L );
 
-
-static inline sentry_t *_sentry_alloc( lua_State *L, loop_t *loop, 
+static inline sentry_t *sentry_alloc( lua_State *L, loop_t *loop,
                                        const char *tname )
 {
     // allocate sentry data
     sentry_t *s = lua_newuserdata( L, sizeof( sentry_t ) );
     
-    if( s )
-    {
-        // create coroutine
-        if( ( s->L = lua_newthread( L ) ) )
-        {
-            // retain coroutine
-            s->ref_th = lstate_ref( L, -1 );
-            lua_pop( L, 1 );
-            // init
-            s->loop = loop;
-            s->ref = s->ref_fn = s->ref_ctx = LUA_NOREF;
-            // set metatable
-            luaL_getmetatable( L, tname );
-            lua_setmetatable( L, -2 );
-        }
-        else {
-            // remove userdata
-            lua_pop( L, 1 );
-            s = NULL;
-        }
+    if( s ){
+        s->ref = LUA_NOREF;
+        s->ident = 0;
+        s->loop = loop;
+        // set metatable
+        lstate_setmetatable( L, tname );
     }
     
     return s;
 }
 
-#define sentry_alloc(L,loop,tname, ... ) ({ \
-    sentry_t *s = _sentry_alloc( L, loop, tname ); \
-    if( s ){ \
-        COEVT_PROP_INIT( &s->prop, __VA_ARGS__ ); \
-    } \
-    s; \
-})
-
-
-#define SENTRY_IS_REGISTERED(s) (s->ref > LUA_REFNIL)
 
 static inline void sentry_release( lua_State *L, sentry_t *s )
 {
     lstate_unref( L, s->ref );
-    lstate_unref( L, s->ref_fn );
-    lstate_unref( L, s->ref_ctx );
-    s->ref = s->ref_fn = s->ref_ctx = LUA_NOREF;
+    s->ref = LUA_NOREF;
+    sentry_refs_release( L, &s->refs );
 }
 
 static inline int sentry_register( lua_State *L, sentry_t *s, coevt_t *evs )
@@ -102,9 +109,7 @@ static inline int sentry_register( lua_State *L, sentry_t *s, coevt_t *evs )
     }
     else {
         // release
-        lstate_unref( L, s->ref_fn );
-        lstate_unref( L, s->ref_ctx );
-        s->ref_fn = s->ref_ctx = LUA_NOREF;
+        sentry_refs_release( L, &s->refs );
     }
     
     return rc;
@@ -115,9 +120,6 @@ static inline int sentry_unregister( lua_State *L, sentry_t *s, coevt_t *evt )
     int rc = loop_unregister( s->loop, s, evt );
     
     sentry_release( L, s );
-    if( rc == 0 ){
-        COEVT_PROP_CLEAR( &s->prop );
-    }
     
     return rc;
 }

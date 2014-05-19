@@ -78,9 +78,11 @@ static inline int loop_unregister( loop_t *loop, sentry_t *s, coevt_t *evt )
 }
 
 
-static inline void loop_exception( loop_t *loop, sentry_t *s, int err, 
-                                   const char *msg )
+static inline void loop_exception( sentry_t *s, sentry_refs_t *refs, 
+                                   int err, const char *msg )
 {
+    loop_t *loop = s->loop;
+    
     if( loop->ref_fn < 0 ){
         pelog( "error %d: %s", err, msg );
     }
@@ -89,7 +91,7 @@ static inline void loop_exception( loop_t *loop, sentry_t *s, int err,
         // push callback function
         lstate_pushref( loop->L, loop->ref_fn );
         // push context and sentry
-        lstate_pushref( loop->L, s->ref_ctx );
+        lstate_pushref( loop->L, refs->ctx );
         lstate_pushref( loop->L, s->ref );
         // push error info table
         lua_createtable( loop->L, 0, 3 );
@@ -97,12 +99,12 @@ static inline void loop_exception( loop_t *loop, sentry_t *s, int err,
         lstate_str2tbl( loop->L, "message", msg );
         
         // get debug info
-        if( s->L )
+        if( refs->L )
         {
             lua_Debug ar;
             
-            if( lua_getstack( s->L, 1, &ar ) == 1 && 
-                lua_getinfo( s->L, "nSl", &ar ) != 0 ){
+            if( lua_getstack( refs->L, 1, &ar ) == 1 && 
+                lua_getinfo( refs->L, "nSl", &ar ) != 0 ){
                 // debug info
                 lua_pushstring( loop->L, "info" );
                 lua_createtable( loop->L, 0, 5 );

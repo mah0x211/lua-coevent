@@ -47,27 +47,37 @@
 // data structure
 // loop
 typedef struct {
-    lua_State *L;
     int fd;
     int state;
     int ref_fn;
     int nevs;
     int nreg;
+    lua_State *L;
     coevt_t *evs;
 } loop_t;
 
 
 // sentries
+
 typedef struct {
-    loop_t *loop;
     lua_State *L;
-    // data references
+    int th;
+    int fn;
+    int ctx;
+    // 1 = oneshot event
+    int oneshot;
+    // drain data
+    COREFS_DRAIN_DEFS();
+} sentry_refs_t;
+
+
+typedef struct {
     int ref;
-    int ref_th;
-    int ref_fn;
-    int ref_ctx;
-    coevt_prop_t prop;
+    coevt_ident_t ident;
+    loop_t *loop;
+    sentry_refs_t refs;
 } sentry_t;
+
 
 
 // memory alloc/dealloc
@@ -100,6 +110,9 @@ typedef struct {
 
 
 // helper macros for lua_State
+#define lstate_setmetatable(L,tname) \
+    (luaL_getmetatable(L,tname),lua_setmetatable(L,-2))
+
 #define lstate_ref(L,idx) \
     (lua_pushvalue(L,idx),luaL_ref( L, LUA_REGISTRYINDEX ))
 
@@ -129,6 +142,7 @@ typedef struct {
 
 
 // define prototypes
+LUALIB_API int luaopen_coevent( lua_State *L );
 LUALIB_API int luaopen_coevent_loop( lua_State *L );
 LUALIB_API int luaopen_coevent_reader( lua_State *L );
 LUALIB_API int luaopen_coevent_writer( lua_State *L );
@@ -144,9 +158,9 @@ LUALIB_API int luaopen_coevent_timer( lua_State *L );
 #define COTIMER_MT  "coevent.timer"
 
 // define loop types
-#define RUNLOOP_NONE       0
-#define RUNLOOP_ONCE       1
-#define RUNLOOP_FOREVER    2
+#define CORUN_NONE       0
+#define CORUN_ONCE       1
+#define CORUN_FOREVER    2
 
 
 static inline void double2timespec( double tval, struct timespec *ts )

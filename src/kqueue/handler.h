@@ -58,17 +58,19 @@ static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, int type,
         flags |= EV_CLEAR;
     }
     
-    EV_SET( evt, s->prop.ident, type, flags, 0, 0, (void*)s );
+    EV_SET( evt, s->ident, type, flags, 0, 0, (void*)s );
 }
 
 
 static inline int coevt_register( loop_t *loop, sentry_t *s, coevt_t *evt )
 {
+    #pragma unused(s)
     return kevent( loop->fd, evt, 1, NULL, 0, NULL );
 }
 
 static inline int coevt_unregister( loop_t *loop, sentry_t *s, coevt_t *evt )
 {
+    #pragma unused(s)
     evt->flags = EV_DELETE;
     return kevent( loop->fd, evt, 1, NULL, 0, NULL );
 }

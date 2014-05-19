@@ -29,7 +29,6 @@
  */
 
 #include "sentry.h"
-#include <sys/timerfd.h>
 
 
 static int watch_lua( lua_State *L )
@@ -43,54 +42,41 @@ static int watch_lua( lua_State *L )
     luaL_checktype( L, 3, LUA_TFUNCTION );
     // arg#4 user-context
     
-    if( SENTRY_IS_REGISTERED( s ) ){
+    if( COREFS_IS_REFERENCED( &s->refs ) ){
         errno = EALREADY;
     }
     else
     {
-        // create timerfd
-        int fd = timerfd_create( CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC );
+        struct timespec cur;
+        struct itimerspec *ts = (struct itimerspec*)s->refs.data;
         
-        if( fd != -1 )
+        // get current time
+        clock_gettime( CLOCK_MONOTONIC, &cur );
+        // set first invocation time
+        ts->it_value = (struct timespec){ 
+            .tv_sec = cur.tv_sec + ts->it_interval.tv_sec,
+            .tv_nsec = cur.tv_nsec + ts->it_interval.tv_nsec
+        };
+        
+        // set timespec
+        if( timerfd_settime( (int)s->ident, TFD_TIMER_ABSTIME, ts, NULL ) == 0 )
         {
-            struct timespec cur;
-            struct itimerspec *ts = (struct itimerspec*)s->prop.data;
+            struct epoll_event evt;
             
-            // get current time
-            clock_gettime( CLOCK_MONOTONIC, &cur );
-            // set first invocation time
-            ts->it_value = (struct timespec){ 
-                .tv_sec = cur.tv_sec + ts->it_interval.tv_sec,
-                .tv_nsec = cur.tv_nsec + ts->it_interval.tv_nsec
-            };
-            
-            // set timespec
-            if( timerfd_settime( fd, TFD_TIMER_ABSTIME, ts, NULL ) == -1 ){
-                close( fd );
+            evt.data.ptr = (void*)s;
+            evt.events = EPOLLRDHUP|EPOLLIN;
+            s->refs.oneshot = lua_toboolean( L, 2 );
+            if( s->refs.oneshot ){
+                evt.events |= EPOLLONESHOT;
             }
-            else
-            {
-                struct epoll_event evt;
-                
-                evt.data.ptr = (void*)s;
-                evt.events = EPOLLRDHUP|EPOLLIN;
-                if( ( s->prop.oneshot = lua_toboolean( L, 2 ) ) ){
-                    evt.events |= EPOLLONESHOT;
-                }
-                
-                // retain callback and usercontext
-                s->ref_fn = lstate_ref( L, 3 );
-                s->ref_ctx = lstate_ref( L, 4 );
-                s->prop.fd = fd;
-                
-                // register event
-                if( sentry_register( L, s, &evt ) == 0 ){
-                    return 0;
-                }
-                else {
-                    s->prop.fd = 0;
-                    close( fd );
-                }
+            
+            // retain callback and usercontext
+            s->refs.fn = lstate_ref( L, 3 );
+            s->refs.ctx = lstate_ref( L, 4 );
+            
+            // register event
+            if( sentry_register( L, s, &evt ) == 0 ){
+                return 0;
             }
         }
     }
@@ -106,11 +92,13 @@ static int unwatch_lua( lua_State *L )
 {
     sentry_t *s = luaL_checkudata( L, 1, COTIMER_MT );
     
-    if( SENTRY_IS_REGISTERED( s ) && 
-        sentry_unregister( L, s, NULL ) != 0 ){
-        // got error
-        lua_pushnumber( L, errno );
-        return 1;
+    if( COREFS_IS_REFERENCED( &s->refs ) )
+    {
+        if( sentry_unregister( L, s, NULL ) != 0 ){
+            // got error
+            lua_pushnumber( L, errno );
+            return 1;
+        }
     }
     
     return 0;
@@ -128,22 +116,31 @@ static int alloc_lua( lua_State *L )
 {
     loop_t *loop = luaL_checkudata( L, 1, COLOOP_MT );
     double timeout = luaL_checknumber( L, 2 );
-    // allocate itimerspec
-    struct itimerspec *ts = palloc( struct itimerspec );
+    // create timerfd
+    int fd = timerfd_create( CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC );
     
-    if( ts )
+    if( fd != -1 )
     {
-        // allocate sentry
-        sentry_t *s = sentry_alloc( L, loop, COTIMER_MT, 0, (uintptr_t)ts, 
-                                    PROP_DRAIN_TIMER );
+        // allocate itimerspec
+        struct itimerspec *ts = palloc( struct itimerspec );
         
-        if( s ){
-            ts->it_value = (struct timespec){ .tv_sec = 0, .tv_nsec = 0 };
-            double2timespec( timeout, &ts->it_interval );
-            return 1;
+        if( ts )
+        {
+            // allocate sentry
+            sentry_t *s = sentry_alloc( L, loop, COTIMER_MT );
+            
+            if( s && sentry_refs_init( L, &s->refs ) == 0 ){
+                s->ident = (coevt_ident_t)fd;
+                COREFS_DRAIN_INIT( &s->refs, (uintptr_t)ts, COREFS_DRAIN_TIMER );
+                ts->it_value = (struct timespec){ .tv_sec = 0, .tv_nsec = 0 };
+                double2timespec( timeout, &ts->it_interval );
+                return 1;
+            }
+            
+            pdealloc( ts );
         }
         
-        pdealloc( ts );
+        close( fd );
     }
     
     // got error

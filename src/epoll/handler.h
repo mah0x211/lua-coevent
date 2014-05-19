@@ -55,9 +55,8 @@ static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, int type,
                                   uint8_t oneshot, uint8_t edge )
 {
     evt->data.ptr = (void*)s;
-    evt->events = type|EPOLLRDHUP;
+    evt->events = (uint32_t)type|EPOLLRDHUP;
     if( oneshot ){
-        s->prop.oneshot = 1;
         evt->events |= EPOLLONESHOT;
     }
     // edge-trigger
@@ -69,14 +68,15 @@ static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, int type,
 
 static inline int coevt_register( loop_t *loop, sentry_t *s, coevt_t *evt )
 {
-    return epoll_ctl( loop->fd, EPOLL_CTL_ADD, s->prop.fd, evt );
+    return epoll_ctl( loop->fd, EPOLL_CTL_ADD, s->ident, evt );
 }
 
 static inline int coevt_unregister( loop_t *loop, sentry_t *s, coevt_t *evt )
 {
+    #pragma unused(evt)
     coevt_t _evt;
     
-    return epoll_ctl( loop->fd, EPOLL_CTL_DEL, s->prop.fd, &_evt );
+    return epoll_ctl( loop->fd, EPOLL_CTL_DEL, s->ident, &_evt );
 }
 
 

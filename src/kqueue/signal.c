@@ -43,27 +43,29 @@ static int watch_lua( lua_State *L )
     luaL_checktype( L, 3, LUA_TFUNCTION );
     // arg#4 user-context
     
-    if( SENTRY_IS_REGISTERED( s ) ){
+    if( COREFS_IS_REFERENCED( &s->refs ) ){
         errno = EALREADY;
     }
     else
     {
-        int *sigset = (int*)s->prop.ident;
+        int *ss = (int*)s->ident;
         uint16_t flags = EV_ADD;
         struct kevent evt;
         int i = 0;
         
-        if( lua_toboolean( L, 2 ) ){
+        // retain callback and usercontext
+        s->refs.fn = lstate_ref( L, 3 );
+        s->refs.ctx = lstate_ref( L, 4 );
+        
+        s->refs.oneshot = lua_toboolean( L, 2 );
+        if( s->refs.oneshot ){
             flags |= EV_ONESHOT;
         }
         
-        // retain callback and usercontext
-        s->ref_fn = lstate_ref( L, 3 );
-        s->ref_ctx = lstate_ref( L, 4 );
         
-        while( sigset[i] )
+        while( ss[i] )
         {
-            EV_SET( &evt, sigset[i], EVFILT_SIGNAL, flags, 0, 0, (void*)s );
+            EV_SET( &evt, ss[i], EVFILT_SIGNAL, flags, 0, 0, (void*)s );
             // register sentry
             if( sentry_register( L, s, &evt ) ){
                 goto REGISTER_FAILURE;
@@ -75,7 +77,7 @@ static int watch_lua( lua_State *L )
         
 REGISTER_FAILURE:
         while( --i <= 0 ){
-            EV_SET( &evt, sigset[i], EVFILT_SIGNAL, EV_DELETE, 0, 0, NULL );
+            EV_SET( &evt, ss[i], EVFILT_SIGNAL, EV_DELETE, 0, 0, NULL );
             // deregister sentry
             sentry_unregister( L, s, &evt );
         }
@@ -92,20 +94,20 @@ static int unwatch_lua( lua_State *L )
 {
     sentry_t *s = luaL_checkudata( L, 1, COSIGNAL_MT );
     
-    if( SENTRY_IS_REGISTERED( s ) )
+    if( COREFS_IS_REFERENCED( &s->refs ) )
     {
         int rc = 0;
-        int *sigset = (int*)s->prop.ident;
+        int *ss = (int*)s->ident;
         struct kevent evt;
         
-        while( *sigset )
+        while( *ss )
         {
-            EV_SET( &evt, *sigset, EVFILT_SIGNAL, EV_DELETE, 0, 0, NULL );
+            EV_SET( &evt, *ss, EVFILT_SIGNAL, EV_DELETE, 0, 0, NULL );
             // deregister sentry
             if( sentry_unregister( L, s, &evt ) != 0 ){
                 rc = -1;
             }
-            sigset++;
+            ss++;
         }
         
         // got error
@@ -132,26 +134,26 @@ static int alloc_lua( lua_State *L )
     int sigs[NSIG] = {0};
     int nsig = 0;
     int signo = 0;
-    int *sigset = NULL;
-    sigset_t ss;
+    int *ss = NULL;
+    sigset_t sschk;
     
     // error
-    if( argc < SENTRY_INIT_ARG ){
-        luaL_checktype( L, SENTRY_INIT_ARG, LUA_TNUMBER );
+    if( argc < 2 ){
+        luaL_checktype( L, 2, LUA_TNUMBER );
     }
     else if( argc > NSIG ){
         return luaL_error( L, "could not register more than %u signals", NSIG );
     }
     
     // clear
-    sigemptyset( &ss );
+    sigemptyset( &sschk );
     while( argc > 1 )
     {
         signo = (int)luaL_checkinteger( L, argc );
         // new signo
-        if( !sigismember( &ss, signo ) )
+        if( !sigismember( &sschk, signo ) )
         {
-            if( sigaddset( &ss, signo ) != 0 ){
+            if( sigaddset( &sschk, signo ) != 0 ){
                 return luaL_argerror( L, argc, "invalid signal number" );
             }
             sigs[nsig++] = signo;
@@ -160,18 +162,19 @@ static int alloc_lua( lua_State *L )
     }
     
     // allocate signal set
-    if( ( sigset = pnalloc( (size_t)nsig + 1, int ) ) )
+    if( ( ss = pnalloc( (size_t)nsig + 1, int ) ) )
     {
         // allocate sentry
-        sentry_t *s = sentry_alloc( L, loop, COSIGNAL_MT, (uintptr_t)sigset );
+        sentry_t *s = sentry_alloc( L, loop, COSIGNAL_MT );
         
-        if( s ){
-            sigset[nsig] = 0;
-            memcpy( (void*)sigset, &sigs, sizeof( int ) * (size_t)nsig );
+        if( s && sentry_refs_init( L, &s->refs ) == 0 ){
+            s->ident = (coevt_ident_t)ss;
+            ss[nsig] = 0;
+            memcpy( (void*)ss, &sigs, sizeof( int ) * (size_t)nsig );
             return 1;
         }
         
-        pdealloc( sigset );
+        pdealloc( ss );
     }
     
     // got error

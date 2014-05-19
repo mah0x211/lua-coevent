@@ -31,28 +31,27 @@
 #include "sentry.h"
 
 
-#define GET_SENTRY_AND_UNREF(L,s) do { \
-    s = lua_touserdata( L, 1 ); \
-    lstate_unref( L, s->ref_th ); \
-    lstate_unref( L, s->ref_fn ); \
-    lstate_unref( L, s->ref_ctx ); \
+#define GC_SENTRY_UNREF(L,refs) do { \
+    lstate_unref( L, (refs)->th ); \
+    lstate_unref( L, (refs)->fn ); \
+    lstate_unref( L, (refs)->ctx ); \
 }while(0)
 
 int sentry_gc( lua_State *L )
 {
-    sentry_t *s = NULL;
+    sentry_t *s = lua_touserdata( L, 1 );
     
-    GET_SENTRY_AND_UNREF( L, s );
+    GC_SENTRY_UNREF( L, &s->refs );
     
     return 0;
 }
 
 int sentry_dealloc_gc( lua_State *L )
 {
-    sentry_t *s = NULL;
+    sentry_t *s = lua_touserdata( L, 1 );
     
-    GET_SENTRY_AND_UNREF( L, s );
-    COEVT_PROP_FREE( &s->prop );
+    GC_SENTRY_UNREF( L, &s->refs );
+    SENTRY_FREE( s );
     
     return 0;
 }

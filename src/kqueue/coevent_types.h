@@ -39,29 +39,20 @@
 
 
 typedef struct kevent   coevt_t;
+typedef uintptr_t       coevt_ident_t;
 
 #define COEVT_UDATA(evt)        ((sentry_t*)(evt)->udata)
-#define COEVT_IS_ONESHOT(evt)   ((evt)->flags & EV_ONESHOT)
 #define COEVT_IS_HUP(evt)       ((evt)->flags & EV_EOF)
 
 
-typedef struct {
-    uintptr_t ident;
-} coevt_prop_t;
-
-
-#define COEVT_PROP_INIT(p,_ident,...) do { \
-    (p)->ident = (_ident); \
+#define SENTRY_FREE(s) do { \
+    pdealloc( (s)->ident ); \
 }while(0)
+
 
 // do nothing
-#define COEVT_PROP_DRAIN(p)
-#define COEVT_PROP_CLEAR(p)
-
-#define COEVT_PROP_FREE(p) do { \
-    COEVT_PROP_CLEAR(p); \
-    pdealloc( (p)->ident ); \
-}while(0)
+#define COREFS_DRAIN_DEFS()
+#define COREFS_DRAIN_DATA(...)
 
 
 #endif

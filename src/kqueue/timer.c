@@ -42,24 +42,25 @@ static int watch_lua( lua_State *L )
     luaL_checktype( L, 3, LUA_TFUNCTION );
     // arg#4 user-context
     
-    if( SENTRY_IS_REGISTERED( s ) ){
+    if( COREFS_IS_REFERENCED( &s->refs ) ){
         errno = EALREADY;
     }
     else
     {
         struct kevent evt;
-        struct timespec *ts = (struct timespec*)s->prop.ident;
+        struct timespec *ts = (struct timespec*)s->ident;
         uint16_t flags = EV_ADD;
         
-        if( lua_toboolean( L, 2 ) ){
+        // retain callback and usercontext
+        s->refs.fn = lstate_ref( L, 3 );
+        s->refs.ctx = lstate_ref( L, 4 );
+        
+        s->refs.oneshot = lua_toboolean( L, 2 );
+        if( s->refs.oneshot ){
             flags |= EV_ONESHOT;
         }
         
-        // retain callback and usercontext
-        s->ref_fn = lstate_ref( L, 3 );
-        s->ref_ctx = lstate_ref( L, 4 );
-        
-        EV_SET( &evt, s->prop.ident, EVFILT_TIMER, flags, NOTE_NSECONDS, 
+        EV_SET( &evt, s->ident, EVFILT_TIMER, flags, NOTE_NSECONDS, 
                 ts->tv_sec * 1000000000 + ts->tv_nsec, (void*)s );
         
         // register sentry
@@ -79,11 +80,11 @@ static int unwatch_lua( lua_State *L )
 {
     sentry_t *s = luaL_checkudata( L, 1, COTIMER_MT );
     
-    if( SENTRY_IS_REGISTERED( s ) )
+    if( COREFS_IS_REFERENCED( &s->refs ) )
     {
         struct kevent evt;
         
-        EV_SET( &evt, s->prop.ident, EVFILT_TIMER, EV_DELETE, 0, 0, NULL );
+        EV_SET( &evt, s->ident, EVFILT_TIMER, EV_DELETE, 0, 0, NULL );
         if( sentry_unregister( L, s, &evt ) != 0 ){
             // got error
             lua_pushnumber( L, errno );
@@ -111,8 +112,10 @@ static int alloc_lua( lua_State *L )
     if( ts )
     {
         // allocate sentry
-        sentry_t *s = sentry_alloc( L, loop, COTIMER_MT, (uintptr_t)ts );
-        if( s ){
+        sentry_t *s = sentry_alloc( L, loop, COTIMER_MT );
+        
+        if( s && sentry_refs_init( L, &s->refs ) == 0 ){
+            s->ident = (coevt_ident_t)ts;
             double2timespec( timeout, ts );
             return 1;
         }
