@@ -40,10 +40,10 @@ end
 -- create loop
 local loop = event.loop();
 -- create io watcher: 1 = stdout
-local watcher = event.writer( loop, 1 );
 local oneshot = false;
 local edgeTrigger = true;
+local watcher = event.writer( loop, 1, edgeTrigger );
 
-watcher:watch( oneshot, edgeTrigger, callback, { count = 0 } );
+watcher:watch( oneshot, callback, { count = 0 } );
 print( 'done', loop:run() );
 
