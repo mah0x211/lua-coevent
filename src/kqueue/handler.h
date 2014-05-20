@@ -45,22 +45,25 @@ static inline int coevt_wait( loop_t *loop, int sec )
 }
 
 
-static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, int type, 
+static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, coevt_type_t type, 
                                   coevt_flag_t flg )
 {
-    EV_SET( evt, s->ident, type, EV_ADD|flg, 0, 0, (void*)s );
+    EV_SET( evt, s->ident, type, flg, 0, 0, (void*)s );
 }
 
 
 static inline int coevt_register( loop_t *loop, sentry_t *s, coevt_t *evt )
 {
-    #pragma unused(s)
+    COEVT_UNUSED(s);
+    
+    evt->flags |= EV_ADD;
     return kevent( loop->fd, evt, 1, NULL, 0, NULL );
 }
 
 static inline int coevt_unregister( loop_t *loop, sentry_t *s, coevt_t *evt )
 {
-    #pragma unused(s)
+    COEVT_UNUSED(s);
+    
     evt->flags = EV_DELETE;
     return kevent( loop->fd, evt, 1, NULL, 0, NULL );
 }

@@ -39,7 +39,6 @@ static int watch_lua( lua_State *L )
     {
         struct kevent evt;
         struct timespec *ts = (struct timespec*)s->ident;
-        uint16_t flags = EV_ADD;
         
         // check arguments
         // arg#2 oneshot
@@ -53,7 +52,7 @@ static int watch_lua( lua_State *L )
         s->refs.fn = lstate_ref( L, 3 );
         s->refs.ctx = lstate_ref( L, 4 );
         
-        EV_SET( &evt, s->ident, EVFILT_TIMER, flags|s->refs.oneshot, 
+        EV_SET( &evt, s->ident, EVFILT_TIMER, s->refs.oneshot, 
                 NOTE_NSECONDS, ts->tv_sec * 1000000000 + ts->tv_nsec, (void*)s);
         
         // register sentry
@@ -76,7 +75,7 @@ static int unwatch_lua( lua_State *L )
     {
         struct kevent evt;
         
-        EV_SET( &evt, s->ident, EVFILT_TIMER, EV_DELETE, 0, 0, NULL );
+        EV_SET( &evt, s->ident, EVFILT_TIMER, 0, 0, 0, NULL );
         if( sentry_unregister( L, s, &evt ) != 0 ){
             // got error
             lua_pushnumber( L, errno );

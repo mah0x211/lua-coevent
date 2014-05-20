@@ -80,6 +80,7 @@ typedef struct {
 } sentry_t;
 
 
+#define COEVT_UNUSED(_a) ((void)_a)
 
 // memory alloc/dealloc
 #define palloc(t)       (t*)malloc( sizeof(t) )
