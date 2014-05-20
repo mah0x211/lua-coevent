@@ -38,23 +38,15 @@ static int rw_watch( lua_State *L, const char *tname, int type )
     if( !COREFS_IS_REFERENCED( &s->refs ) )
     {
         coevt_t evt;
-
-        // check arguments
-        // arg#2 oneshot
-        luaL_checktype( L, 2, LUA_TBOOLEAN );
-        // arg#3 callback function
-        luaL_checktype( L, 3, LUA_TFUNCTION );
-        // arg#4 user-context
         
-        // retain callback and usercontext
-        s->refs.oneshot = lua_toboolean( L, 2 ) ? COEVT_FLG_ONESHOT : 0;
-        s->refs.fn = lstate_ref( L, 3 );
-        s->refs.ctx = lstate_ref( L, 4 );
+        // retain sentry and arguments
+        sentry_retain_refs( L, s );
         
         coevt_rw_init( &evt, s, type, s->trigger|s->refs.oneshot );
         // register sentry
-        if( sentry_register( L, s, &s->refs, &evt ) != 0 ){
+        if( sentry_register( s, &evt ) != 0 ){
             // got error
+            sentry_release_refs( L, s );
             lua_pushnumber( L, errno );
             return 1;
         }
@@ -74,7 +66,6 @@ static int writer_watch_lua( lua_State *L )
 }
 
 
-
 static int rw_unwatch( lua_State *L, const char *tname, int type )
 {
     sentry_t *s = luaL_checkudata( L, 1, tname );
@@ -83,8 +74,11 @@ static int rw_unwatch( lua_State *L, const char *tname, int type )
     {
         coevt_t evt;
         
+        // release references
+        sentry_release_refs( L, s );
+        
         coevt_rw_init( &evt, s, type, 0 );
-        if( sentry_unregister( L, s, &s->refs, &evt ) != 0 ){
+        if( sentry_unregister( s, &evt ) != 0 ){
             // got error
             lua_pushnumber( L, errno );
             return 1;

@@ -80,6 +80,7 @@ typedef struct {
 } sentry_t;
 
 
+
 #define COEVT_UNUSED(_a) ((void)_a)
 
 // memory alloc/dealloc
@@ -117,6 +118,9 @@ typedef struct {
 
 #define lstate_ref(L,idx) \
     (lua_pushvalue(L,idx),luaL_ref( L, LUA_REGISTRYINDEX ))
+
+#define lstate_isref(ref) \
+    ((ref) > LUA_REFNIL)
 
 #define lstate_pushref(L,ref) \
     lua_rawgeti( L, LUA_REGISTRYINDEX, ref )
@@ -158,6 +162,7 @@ LUALIB_API int luaopen_coevent_timer( lua_State *L );
 #define COWRITER_MT "coevent.writer"
 #define COSIGNAL_MT "coevent.signal"
 #define COTIMER_MT  "coevent.timer"
+
 
 // define loop types
 #define CORUN_NONE       0

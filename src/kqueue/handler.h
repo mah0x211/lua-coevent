@@ -52,7 +52,7 @@ static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, coevt_type_t type,
 }
 
 
-static inline int coevt_register( loop_t *loop, sentry_t *s, coevt_t *evt )
+static inline int coevt_add( loop_t *loop, sentry_t *s, coevt_t *evt )
 {
     COEVT_UNUSED(s);
     
@@ -60,7 +60,7 @@ static inline int coevt_register( loop_t *loop, sentry_t *s, coevt_t *evt )
     return kevent( loop->fd, evt, 1, NULL, 0, NULL );
 }
 
-static inline int coevt_unregister( loop_t *loop, sentry_t *s, coevt_t *evt )
+static inline int coevt_del( loop_t *loop, sentry_t *s, coevt_t *evt )
 {
     COEVT_UNUSED(s);
     

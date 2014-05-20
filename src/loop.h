@@ -57,7 +57,7 @@ static inline int loop_register( loop_t *loop, sentry_t *s, coevt_t *evt )
     }
     
     // register event
-    rc = coevt_register( loop, s, evt );
+    rc = coevt_add( loop, s, evt );
     if( rc == 0 ){
         loop->nreg++;
     }
@@ -68,7 +68,7 @@ static inline int loop_register( loop_t *loop, sentry_t *s, coevt_t *evt )
 
 static inline int loop_unregister( loop_t *loop, sentry_t *s, coevt_t *evt )
 {
-    int rc = coevt_unregister( loop, s, evt );
+    int rc = coevt_del( loop, s, evt );
     
     if( rc == 0 ){
         loop->nreg--;

@@ -39,40 +39,31 @@ static int watch_lua( lua_State *L )
     if( !COREFS_IS_REFERENCED( &s->refs ) )
     {
         int *ss = (int*)s->ident;
-        uint16_t flags = EV_ADD;
         struct kevent evt;
         int i = 0;
         
-        // check arguments
-        // arg#2 oneshot
-        luaL_checktype( L, 2, LUA_TBOOLEAN );
-        // arg#3 callback function
-        luaL_checktype( L, 3, LUA_TFUNCTION );
-        // arg#4 user-context
-        
-        // retain callback and usercontext
-        s->refs.oneshot = lua_toboolean( L, 2 ) ? COEVT_FLG_ONESHOT : 0;
-        s->refs.fn = lstate_ref( L, 3 );
-        s->refs.ctx = lstate_ref( L, 4 );
-        flags |= s->refs.oneshot;
+        // retain sentry and arguments
+        sentry_retain_refs( L, s );
         
         while( ss[i] )
         {
-            EV_SET( &evt, ss[i], EVFILT_SIGNAL, flags, 0, 0, (void*)s );
+            EV_SET( &evt, ss[i], EVFILT_SIGNAL, s->refs.oneshot, 0, 0, (void*)s );
             // register sentry
-            if( sentry_register( L, s, &s->refs, &evt ) ){
+            if( sentry_register( s, &evt ) ){
                 goto REGISTER_FAILURE;
             }
             i++;
         }
         
         return 0;
-        
+
+
 REGISTER_FAILURE:
+        sentry_release_refs( L, s );
         while( --i <= 0 ){
             EV_SET( &evt, ss[i], EVFILT_SIGNAL, 0, 0, 0, NULL );
             // deregister sentry
-            sentry_unregister( L, s, &s->refs, &evt );
+            sentry_unregister( s, &evt );
         }
         
         // got error
@@ -94,11 +85,14 @@ static int unwatch_lua( lua_State *L )
         int *ss = (int*)s->ident;
         struct kevent evt;
         
+        // release references
+        sentry_release_refs( L, s );
+        
         while( *ss )
         {
             EV_SET( &evt, *ss, EVFILT_SIGNAL, 0, 0, 0, NULL );
             // deregister sentry
-            if( sentry_unregister( L, s, &s->refs, &evt ) != 0 ){
+            if( sentry_unregister( s, &evt ) != 0 ){
                 rc = -1;
             }
             ss++;

@@ -40,24 +40,16 @@ static int watch_lua( lua_State *L )
         struct kevent evt;
         struct timespec *ts = (struct timespec*)s->ident;
         
-        // check arguments
-        // arg#2 oneshot
-        luaL_checktype( L, 2, LUA_TBOOLEAN );
-        // arg#3 callback function
-        luaL_checktype( L, 3, LUA_TFUNCTION );
-        // arg#4 user-context
-        
-        // retain callback and usercontext
-        s->refs.oneshot = lua_toboolean( L, 2 ) ? COEVT_FLG_ONESHOT : 0;
-        s->refs.fn = lstate_ref( L, 3 );
-        s->refs.ctx = lstate_ref( L, 4 );
+        // retain arguments
+        sentry_retain_refs( L, s );
         
         EV_SET( &evt, s->ident, EVFILT_TIMER, s->refs.oneshot, 
                 NOTE_NSECONDS, ts->tv_sec * 1000000000 + ts->tv_nsec, (void*)s);
         
         // register sentry
-        if( sentry_register( L, s, &s->refs, &evt ) != 0 ){
+        if( sentry_register( s, &evt ) != 0 ){
             // got error
+            sentry_release_refs( L, s );
             lua_pushnumber( L, errno );
             return 1;
         }
@@ -75,8 +67,11 @@ static int unwatch_lua( lua_State *L )
     {
         struct kevent evt;
         
+        // release references
+        sentry_release_refs( L, s );
+        
         EV_SET( &evt, s->ident, EVFILT_TIMER, 0, 0, 0, NULL );
-        if( sentry_unregister( L, s, &s->refs, &evt ) != 0 ){
+        if( sentry_unregister( s, &evt ) != 0 ){
             // got error
             lua_pushnumber( L, errno );
             return 1;

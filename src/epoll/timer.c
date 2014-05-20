@@ -40,12 +40,8 @@ static int watch_lua( lua_State *L )
         struct timespec cur;
         struct itimerspec *ts = (struct itimerspec*)s->refs.data;
         
-        // check arguments
-        // arg#2 oneshot
-        luaL_checktype( L, 2, LUA_TBOOLEAN );
-        // arg#3 callback function
-        luaL_checktype( L, 3, LUA_TFUNCTION );
-        // arg#4 user-context
+        // retain sentry and arguments
+        sentry_retain_refs( L, s );
         
         // get current time
         clock_gettime( CLOCK_MONOTONIC, &cur );
@@ -60,21 +56,16 @@ static int watch_lua( lua_State *L )
         {
             struct epoll_event evt;
             
-            // retain callback and usercontext
-            s->refs.oneshot = lua_toboolean( L, 2 ) ? COEVT_FLG_ONESHOT : 0;
-            s->refs.fn = lstate_ref( L, 3 );
-            s->refs.ctx = lstate_ref( L, 4 );
-            
             evt.data.ptr = (void*)s;
             evt.events = EPOLLRDHUP|EPOLLIN|s->refs.oneshot;
-
             // register event
-            if( sentry_register( L, s, &s->refs, &evt ) == 0 ){
+            if( sentry_register( s, &evt ) == 0 ){
                 return 0;
             }
         }
         
         // got error
+        sentry_release_refs( L, s );
         lua_pushnumber( L, errno );
         
         return 1;
@@ -90,7 +81,10 @@ static int unwatch_lua( lua_State *L )
     
     if( COREFS_IS_REFERENCED( &s->refs ) )
     {
-        if( sentry_unregister( L, s, &s->refs, NULL ) != 0 ){
+        // release references
+        sentry_release_refs( L, s );
+        
+        if( sentry_unregister( s, NULL ) != 0 ){
             // got error
             lua_pushnumber( L, errno );
             return 1;
