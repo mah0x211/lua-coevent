@@ -61,7 +61,13 @@ static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, coevt_type_t type,
 
 static inline int coevt_add( loop_t *loop, sentry_t *s, coevt_t *evt )
 {
-    return epoll_ctl( loop->fd, EPOLL_CTL_ADD, s->ident, evt );
+    int rc = epoll_ctl( loop->fd, EPOLL_CTL_ADD, s->ident, evt );
+    
+    if( rc == 0 ){
+        loop->nreg++;
+    }
+    
+    return rc;
 }
 
 static inline int coevt_del( loop_t *loop, sentry_t *s, coevt_t *evt )
@@ -69,8 +75,13 @@ static inline int coevt_del( loop_t *loop, sentry_t *s, coevt_t *evt )
     COEVT_UNUSED(evt);
     
     coevt_t _evt;
+    int rc = epoll_ctl( loop->fd, EPOLL_CTL_DEL, s->ident, &_evt );
     
-    return epoll_ctl( loop->fd, EPOLL_CTL_DEL, s->ident, &_evt );
+    if( rc == 0 ){
+        loop->nreg--;
+    }
+    
+    return rc;
 }
 
 

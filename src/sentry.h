@@ -137,8 +137,8 @@ static inline void sentry_dispose( lua_State *L, sentry_t *s )
 }
 
 
-#define sentry_register(s,evs) \
-    loop_register((s)->loop, s, evs)
+#define sentry_register(s,evt) \
+    loop_register((s)->loop, s, evt)
 
 #define sentry_unregister(s,evt) \
     loop_unregister((s)->loop, s, evt)
