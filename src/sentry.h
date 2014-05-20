@@ -92,10 +92,10 @@ static inline void sentry_release( lua_State *L, sentry_t *s )
 {
     lstate_unref( L, s->ref );
     s->ref = LUA_NOREF;
-    sentry_refs_release( L, &s->refs );
 }
 
-static inline int sentry_register( lua_State *L, sentry_t *s, coevt_t *evs )
+static inline int sentry_register( lua_State *L, sentry_t *s, 
+                                   sentry_refs_t *refs, coevt_t *evs )
 {
     // register event
     int rc = loop_register( s->loop, s, evs );
@@ -106,17 +106,19 @@ static inline int sentry_register( lua_State *L, sentry_t *s, coevt_t *evs )
     }
     else {
         // release
-        sentry_refs_release( L, &s->refs );
+        sentry_refs_release( L, refs );
     }
     
     return rc;
 }
 
-static inline int sentry_unregister( lua_State *L, sentry_t *s, coevt_t *evt )
+static inline int sentry_unregister( lua_State *L, sentry_t *s, 
+                                     sentry_refs_t *refs, coevt_t *evt )
 {
     int rc = loop_unregister( s->loop, s, evt );
     
     sentry_release( L, s );
+    sentry_refs_release( L, refs );
     
     return rc;
 }

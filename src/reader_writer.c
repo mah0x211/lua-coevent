@@ -53,7 +53,7 @@ static int rw_watch( lua_State *L, const char *tname, int type )
         
         coevt_rw_init( &evt, s, type, s->trigger|s->refs.oneshot );
         // register sentry
-        if( sentry_register( L, s, &evt ) != 0 ){
+        if( sentry_register( L, s, &s->refs, &evt ) != 0 ){
             // got error
             lua_pushnumber( L, errno );
             return 1;
@@ -84,7 +84,7 @@ static int rw_unwatch( lua_State *L, const char *tname, int type )
         coevt_t evt;
         
         coevt_rw_init( &evt, s, type, 0 );
-        if( sentry_unregister( L, s, &evt ) != 0 ){
+        if( sentry_unregister( L, s, &s->refs, &evt ) != 0 ){
             // got error
             lua_pushnumber( L, errno );
             return 1;

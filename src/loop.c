@@ -114,11 +114,11 @@ LOOP_CONTINUE:
                     
                     // unregister hup/oneshot sentry
                     if( hup ){
-                        sentry_unregister( L, s, evt );
+                        sentry_unregister( L, s, refs, evt );
                         COREFS_RELEASE_THREAD( L, refs );
                     }
                     else if( COREFS_IS_ONESHOT( refs ) ){
-                        sentry_unregister( L, s, evt );
+                        sentry_unregister( L, s, refs, evt );
                     }
                     
                     // run on coroutine
@@ -158,7 +158,7 @@ LOOP_CONTINUE:
                                         "could not create coroutine"
                                     );
                                     // release sentry
-                                    sentry_unregister( L, s, evt );
+                                    sentry_unregister( L, s, refs, evt );
                                 }
                             }
                         break;
@@ -166,7 +166,7 @@ LOOP_CONTINUE:
                 }
                 // remove unregistered sentry
                 else {
-                    sentry_unregister( L, s, evt );
+                    sentry_unregister( L, s, refs, evt );
                     COREFS_RELEASE_THREAD( L, refs );
                 }
             }

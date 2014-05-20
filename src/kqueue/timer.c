@@ -56,7 +56,7 @@ static int watch_lua( lua_State *L )
                 NOTE_NSECONDS, ts->tv_sec * 1000000000 + ts->tv_nsec, (void*)s);
         
         // register sentry
-        if( sentry_register( L, s, &evt ) != 0 ){
+        if( sentry_register( L, s, &s->refs, &evt ) != 0 ){
             // got error
             lua_pushnumber( L, errno );
             return 1;
@@ -76,7 +76,7 @@ static int unwatch_lua( lua_State *L )
         struct kevent evt;
         
         EV_SET( &evt, s->ident, EVFILT_TIMER, 0, 0, 0, NULL );
-        if( sentry_unregister( L, s, &evt ) != 0 ){
+        if( sentry_unregister( L, s, &s->refs, &evt ) != 0 ){
             // got error
             lua_pushnumber( L, errno );
             return 1;

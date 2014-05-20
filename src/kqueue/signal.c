@@ -60,7 +60,7 @@ static int watch_lua( lua_State *L )
         {
             EV_SET( &evt, ss[i], EVFILT_SIGNAL, flags, 0, 0, (void*)s );
             // register sentry
-            if( sentry_register( L, s, &evt ) ){
+            if( sentry_register( L, s, &s->refs, &evt ) ){
                 goto REGISTER_FAILURE;
             }
             i++;
@@ -72,7 +72,7 @@ REGISTER_FAILURE:
         while( --i <= 0 ){
             EV_SET( &evt, ss[i], EVFILT_SIGNAL, 0, 0, 0, NULL );
             // deregister sentry
-            sentry_unregister( L, s, &evt );
+            sentry_unregister( L, s, &s->refs, &evt );
         }
         
         // got error
@@ -98,7 +98,7 @@ static int unwatch_lua( lua_State *L )
         {
             EV_SET( &evt, *ss, EVFILT_SIGNAL, 0, 0, 0, NULL );
             // deregister sentry
-            if( sentry_unregister( L, s, &evt ) != 0 ){
+            if( sentry_unregister( L, s, &s->refs, &evt ) != 0 ){
                 rc = -1;
             }
             ss++;

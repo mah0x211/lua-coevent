@@ -69,7 +69,7 @@ static int watch_lua( lua_State *L )
             evt.events = EPOLLRDHUP|EPOLLIN|s->refs.oneshot;
 
             // register event
-            if( sentry_register( L, s, &evt ) == 0 ){
+            if( sentry_register( L, s, &s->refs, &evt ) == 0 ){
                 return 0;
             }
         }
@@ -90,7 +90,7 @@ static int unwatch_lua( lua_State *L )
     
     if( COREFS_IS_REFERENCED( &s->refs ) )
     {
-        if( sentry_unregister( L, s, NULL ) != 0 ){
+        if( sentry_unregister( L, s, &s->refs, NULL ) != 0 ){
             // got error
             lua_pushnumber( L, errno );
             return 1;
