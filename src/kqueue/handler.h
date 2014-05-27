@@ -39,9 +39,6 @@
 
 static inline sentry_t *coevt_getsentry( loop_t *loop, kevt_t *evt )
 {
-    int rc;
-    int type;
-    
     switch( evt->filter ){
         case EVFILT_TIMER:
             return (sentry_t*)evt->udata;
@@ -52,14 +49,12 @@ static inline sentry_t *coevt_getsentry( loop_t *loop, kevt_t *evt )
             }
         break;
         case EVFILT_READ:
-            type = COSENTRY_T_READER;
-            if( ( rc = fdismember( &loop->fds, evt->ident, COSENTRY_T_READER ) ) == 1 ){
+            if( fdismember( &loop->fds, evt->ident, COSENTRY_T_READER ) == 1 ){
                 return (sentry_t*)evt->udata;
             }
         break;
         case EVFILT_WRITE:
-            type = COSENTRY_T_WRITER;
-            if( ( rc = fdismember( &loop->fds, evt->ident, COSENTRY_T_WRITER ) ) == 1 ){
+            if( fdismember( &loop->fds, evt->ident, COSENTRY_T_WRITER ) == 1 ){
                 return (sentry_t*)evt->udata;
             }
         break;
