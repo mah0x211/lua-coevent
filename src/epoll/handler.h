@@ -43,17 +43,20 @@
 
 static inline sentry_t *coevt_getsentry( loop_t *loop, kevt_t *kevt )
 {
+    // fetch sentry from fdset
     sentry_t *s = (sentry_t*)fdismember( &loop->fds, kevt->data.fd );
     
     if( s )
     {
         switch( s->type )
         {
+            // switch reader to writer if writable event
             case COSENTRY_T_READER:
                 if( kevt->events & EPOLLOUT ){
                     s = (sentry_t*)s->evt.sibling;
                 }
             break;
+            // switch writer to reader if readable event
             case COSENTRY_T_WRITER:
                 if( kevt->events & EPOLLIN ){
                     s = (sentry_t*)s->evt.sibling;
@@ -74,6 +77,7 @@ static inline void coevt_dealloc( lua_State *L, sentry_t *s )
     }
     coevt_release( L, s );
 }
+
 
 // MARK: event handler
 static inline void coevt_drain( sentry_t *s )
@@ -119,7 +123,7 @@ static inline int coevt_add( lua_State *L, sentry_t *s, int oneshot )
         else {
             s->evt.flags &= ~EPOLLONESHOT;
         }
-
+        
         rc = epoll_ctl( s->loop->fd, EPOLL_CTL_ADD, s->evt.ev.data.fd, &s->evt.ev );
         if( rc == 0 ){
             coevt_retain( L, s );
@@ -166,8 +170,8 @@ static inline void coevt_cleanup( lua_State *L, sentry_t *s )
         case COSENTRY_T_SIGNAL:
             sigdelset( &s->loop->signals, s->evt.ident );
         case COSENTRY_T_TIMER:
-            close( s->evt.ev.data.fd );
             fddelset( &s->loop->fds, evt->data.fd );
+            close( s->evt.ev.data.fd );
         break;
         case COSENTRY_T_READER:
         case COSENTRY_T_WRITER:
