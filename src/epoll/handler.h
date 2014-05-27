@@ -244,6 +244,7 @@ static inline int coevt_timer_watch( lua_State *L, sentry_t *s, int oneshot )
                 // get current time
                 clock_gettime( CLOCK_MONOTONIC, &now );
                 // set first invocation time
+                spec.it_interval = *interval;
                 spec.it_value = (struct timespec){
                     .tv_sec = now.tv_sec + interval->tv_sec,
                     .tv_nsec = now.tv_nsec + interval->tv_nsec
