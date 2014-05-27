@@ -317,7 +317,7 @@ static inline int coevt_signal_watch( lua_State *L, sentry_t *s, int oneshot )
                 coevt_add( L, s, oneshot ) == 0 ){
                 fdaddset( &s->loop->fds, fd, (void*)s );
                 sigaddset( &s->loop->signals, s->evt.ident );
-                return 1;
+                return 0;
             }
             
             s->evt.ev.data.fd = -1;
@@ -326,10 +326,9 @@ static inline int coevt_signal_watch( lua_State *L, sentry_t *s, int oneshot )
     }
     
     // got error
-    lua_pushnil( L );
     lua_pushinteger( L, errno );
     
-    return 2;
+    return 1;
 }
 
 
