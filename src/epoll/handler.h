@@ -45,8 +45,21 @@ static inline sentry_t *coevt_getsentry( loop_t *loop, kevt_t *kevt )
 {
     sentry_t *s = (sentry_t*)fdismember( &loop->fds, kevt->data.fd );
     
-    if( s && !( kevt->events & s->type ) ){
-        s = (sentry_t*)s->evt.sibling;
+    if( s )
+    {
+        switch( s->type )
+        {
+            case COSENTRY_T_READER:
+                if( kevt->events & EPOLLOUT ){
+                    s = (sentry_t*)s->evt.sibling;
+                }
+            break;
+            case COSENTRY_T_WRITER:
+                if( kevt->events & EPOLLIN ){
+                    s = (sentry_t*)s->evt.sibling;
+                }
+            break;
+        }
     }
     
     return s;
