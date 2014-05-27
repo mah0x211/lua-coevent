@@ -69,10 +69,10 @@ static inline void coevt_drain( sentry_t *s )
     
     switch( s->type ){
         case COSENTRY_T_SIGNAL:
-            read( s->evt.ident, drain_storage, sizeof( struct signalfd_siginfo ) );
+            read( s->evt.ev.data.fd, drain_storage, sizeof( struct signalfd_siginfo ) );
         break;
         case COSENTRY_T_TIMER:
-            read( s->evt.ident, drain_storage, sizeof( uint64_t ) );
+            read( s->evt.ev.data.fd, drain_storage, sizeof( uint64_t ) );
         break;
     }
 }
