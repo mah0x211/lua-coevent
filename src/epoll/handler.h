@@ -44,12 +44,8 @@
 static inline sentry_t *coevt_getsentry( loop_t *loop, kevt_t *kevt )
 {
     sentry_t *s = (sentry_t*)fdismember( &loop->fds, kevt->data.fd );
-    int type;
     
-    if( s && 
-        // reader/writer event
-        ( type = (COSENTRY_T_READER|COSENTRY_T_WRITER) & s->type ) &&
-        !( kevt->events & type ) ){
+    if( s && !( kevt->events & s->type ) ){
         s = (sentry_t*)s->evt.sibling;
     }
     
@@ -116,6 +112,7 @@ static inline int coevt_add( lua_State *L, sentry_t *s, int oneshot )
     return rc;
 }
 
+
 static inline int coevt_madd( lua_State *L, sentry_t *s, int oneshot )
 {
     int rc = 0;
@@ -139,63 +136,63 @@ static inline int coevt_madd( lua_State *L, sentry_t *s, int oneshot )
 }
 
 
-static inline int coevt_remove( loop_t *loop, kevt_t *evt )
-{
-    return epoll_ctl( loop->fd, EPOLL_CTL_DEL, evt->data.fd, evt );
-}
-
-
 static inline void coevt_cleanup( lua_State *L, sentry_t *s )
 {
-    sentry_t *sibling = NULL;
+    kevt_t *evt = &s->evt.ev;
+    int decr = 1;
+    int op = EPOLL_CTL_DEL;
     
-    coevt_release( L, s );
-    sentry_release( L, s );
     switch( s->type )
     {
         case COSENTRY_T_SIGNAL:
             sigdelset( &s->loop->signals, s->evt.ident );
         case COSENTRY_T_TIMER:
             close( s->evt.ev.data.fd );
-            fddelset( &s->loop->fds, s->evt.ev.data.fd );
+            fddelset( &s->loop->fds, evt->data.fd );
         break;
         case COSENTRY_T_READER:
         case COSENTRY_T_WRITER:
-            if( ( sibling = s->evt.sibling ) )
-            {
+            if( s->evt.sibling ){
+                sentry_t *sibling = (sentry_t*)s->evt.sibling;
+                
+                decr = 0;
+                op = EPOLL_CTL_MOD;
+                evt = &sibling->evt.ev;
                 s->evt.sibling = sibling->evt.sibling = NULL;
-                if( epoll_ctl( s->loop->fd, EPOLL_CTL_MOD, 
-                               s->evt.ev.data.fd, &s->evt.ev ) != 0 ){
-                    plog( "failed to epoll_ctl_mod: %s", strerror(errno) );
-                }
+                fdaddset( &s->loop->fds, evt->data.fd, (void*)sibling );
             }
             else {
-                fddelset( &s->loop->fds, s->evt.ev.data.fd );
+                fddelset( &s->loop->fds, evt->data.fd );
             }
         break;
     }
     
+    epoll_ctl( s->loop->fd, op, evt->data.fd, evt );
     s->evt.ev.data.fd = -1;
-    s->loop->nreg--;
+    s->loop->nreg -= decr;
+    coevt_release( L, s );
+    sentry_release( L, s );
 }
 
 
 static inline void coevt_del( lua_State *L, sentry_t *s )
 {
     if( lstate_isref( s->ref ) ){
-        coevt_remove( s->loop, &s->evt.ev );
         coevt_cleanup( L, s );
     }
 }
 
 
+static inline int coevt_remove( loop_t *loop, kevt_t *evt )
+{
+    return epoll_ctl( loop->fd, EPOLL_CTL_DEL, evt->data.fd, evt );
+}
+
+
 static inline void coevt_checkup( lua_State *L, sentry_t *s, kevt_t *evt )
 {
-    if( COEVT_IS_ONESHOT( &s->evt ) ){
+    if( COEVT_IS_ONESHOT( &s->evt ) || COEVT_IS_HUP( evt ) ){
         coevt_cleanup( L, s );
-    }
-    else if( COEVT_IS_HUP( evt ) ){
-        coevt_del( L, s );
     }
 }
 
