@@ -82,12 +82,16 @@ static inline void coevt_dealloc( lua_State *L, sentry_t *s )
 // MARK: event handler
 #define coevt_drain(...)
 
-static inline int coevt_wait( loop_t *loop, int sec )
+static inline void coevt_loop_timeout( loop_t *loop, int timeout )
 {
-    // defaout timeout: 1 sec
-    struct timespec ts = { sec, 0 };
-    
-    return kevent( loop->fd, NULL, 0, loop->evs, (int)loop->nreg, &ts );
+    loop->timeout = (struct timespec){ timeout, 0 };
+}
+
+
+static inline int coevt_wait( loop_t *loop )
+{
+    return kevent( loop->fd, NULL, 0, loop->evs, (int)loop->nreg, 
+                   &loop->timeout );
 }
 
 static inline int coevt_add( lua_State *L, sentry_t *s, int oneshot )

@@ -140,6 +140,7 @@ typedef struct {
     int ref_fn;
     int nevs;
     int nreg;
+    struct timespec timeout;
     sigset_t signals;
     fdset_t fds;
     lua_State *L;

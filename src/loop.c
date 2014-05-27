@@ -35,16 +35,15 @@
 #define CORUN_ONCE       1
 #define CORUN_FOREVER    2
 
-static int runloop( lua_State *L, loop_t *loop, int timeout )
+static int runloop( lua_State *L, loop_t *loop )
 {
     lua_State *th = NULL;
     sentry_t *s = NULL;
     kevt_t *kevt = NULL;
     int nevt, i, narg, rc;
-
-LOOP_CONTINUE:
-    nevt = coevt_wait( loop, timeout );
     
+LOOP_CONTINUE:
+    nevt = coevt_wait( loop );
     // check errno
     if( nevt == -1 )
     {
@@ -168,7 +167,9 @@ static int run_lua( lua_State *L )
             }
         }
         
-        return runloop( L, loop, timeout );
+        coevt_loop_timeout( loop, timeout );
+        
+        return runloop( L, loop );
     }
 
     errno = EALREADY;

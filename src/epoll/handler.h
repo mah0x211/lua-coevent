@@ -78,13 +78,19 @@ static inline void coevt_drain( sentry_t *s )
 }
 
 
-static inline int coevt_wait( loop_t *loop, int sec )
+static inline void coevt_loop_timeout( loop_t *loop, int timeout )
 {
-    if( sec > 0 ){
-        sec *= 1000;
+    if( timeout > 0 ){
+        timeout *= 1000;
     }
-    
-    return epoll_pwait( loop->fd, loop->evs, (int)loop->nreg, sec, NULL );
+    loop->timeout = (struct timespec){ timeout, 0 };
+}
+
+
+static inline int coevt_wait( loop_t *loop )
+{
+    return epoll_pwait( loop->fd, loop->evs, (int)loop->nreg, 
+                        loop->timeout.tv_sec, NULL );
 }
 
 
