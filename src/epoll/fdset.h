@@ -12,10 +12,13 @@
 
 #include "coevent_types.h"
 
+
 typedef struct {
     int nevs;
     void **evs;
 } fdset_t;
+
+#define FV_SIZE sizeof(void*)
 
 
 enum FDSET_MEMBER_TYPE {
@@ -29,6 +32,7 @@ static inline int fdset_alloc( fdset_t *set, size_t nfd )
     set->evs = pcalloc( (size_t)nfd, void* );
     
     if( set->evs ){
+        set->nevs = nfd;
         return 0;
     }
     
@@ -44,12 +48,12 @@ static inline int fdset_realloc( fdset_t *set, int fd )
     else if( fd >= set->nevs )
     {
         // realloc event container
-        void **evs = prealloc( fd, void*, set->evs );
+        void **evs = prealloc( fd + 1, void*, set->evs );
         
         if( !evs ){
             return -1;
         }
-        memset( evs + set->nevs, 0, ( fd - set->nevs ) * sizeof( void* ) );
+        memset( evs + FV_SIZE * set->nevs, 0, ( fd - set->nevs ) * FV_SIZE );
         set->nevs = fd;
         set->evs = evs;
     }
