@@ -33,36 +33,13 @@
 
 #include <sys/event.h>
 
+typedef struct kevent   kevt_t;
+typedef kevt_t          coevt_t;
 
-typedef struct kevent       coevt_t;
-typedef uintptr_t           coevt_ident_t;
-
-// event types
-#define COEVT_READ          EVFILT_READ
-#define COEVT_WRITE         EVFILT_WRITE
-typedef int16_t             coevt_type_t;
-
-// event flags
-#define COEVT_FLG_ONESHOT   EV_ONESHOT
-#define COEVT_FLG_EDGE      EV_CLEAR
-typedef uint16_t            coevt_flag_t;
-
-
-#define COEVT_UDATA(evt)    ((sentry_t*)(evt)->udata)
-#define COEVT_IS_HUP(evt)   ((evt)->flags & EV_EOF)
-#define COEVT_IS_READ(evt)  ((evt)->filter == EVFILT_READ)
-#define COEVT_IS_WRITE(evt) ((evt)->filter == EVFILT_WRITE)
-
-
-#define SENTRY_FREE(s) do { \
-    pdealloc( (s)->ident ); \
-}while(0)
-
-
-// do nothing
-#define COREFS_DRAIN_DEFS()
-#define COREFS_DRAIN_INIT(...)
-#define COREFS_DRAIN_DATA(...)
+#define COEVT_IS_HUP(evt)          (!!((evt)->flags & EV_EOF))
+#define COEVT_IS_ONESHOT(evt)      (!!((evt)->flags & EV_ONESHOT))
 
 
 #endif
+
+

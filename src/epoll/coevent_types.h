@@ -36,62 +36,18 @@
 #include <sys/timerfd.h>
 
 
-typedef struct epoll_event  coevt_t;
-typedef int                 coevt_ident_t;
+typedef struct epoll_event  kevt_t;
 
-// event types
-#define COEVT_READ          EPOLLIN
-#define COEVT_WRITE         EPOLLOUT
-typedef uint32_t            coevt_type_t;
-
-// event flags
-#define COEVT_FLG_ONESHOT   EPOLLONESHOT
-#define COEVT_FLG_EDGE      EPOLLET
-typedef coevt_type_t        coevt_flag_t;
+typedef struct {
+    uintptr_t ident;
+    int flags;
+    void *sibling;
+    struct epoll_event ev;
+} coevt_t;
 
 
-#define COEVT_UDATA(evt)    ((sentry_t*)(evt)->data.ptr)
-#define COEVT_IS_HUP(evt)   ((evt)->events & (EPOLLRDHUP|EPOLLHUP))
-#define COEVT_IS_READ(evt)  ((evt)->events & EPOLLIN)
-#define COEVT_IS_WRITE(evt) ((evt)->events & EPOLLOUT)
-
-
-#define SENTRY_FREE(s) do { \
-    close( (s)->ident ); \
-    if( (s)->refs.data ){ \
-        pdealloc( (s)->refs.data ); \
-    } \
-}while(0)
-
-
-// drain types
-#define COREFS_DRAIN_SIGNAL     1
-#define COREFS_DRAIN_TIMER      2
-
-#define COREFS_DRAIN_DEFS() \
-    /* drain type */ \
-    int drain; \
-    uintptr_t data
-
-
-#define COREFS_DRAIN_INIT(refs,_data,_drain) do { \
-    (refs)->drain = (_drain); \
-    (refs)->data = (_data); \
-}while(0)
-
-
-static uint8_t _drain_storage[sizeof( struct signalfd_siginfo )];
-
-#define COREFS_DRAIN_DATA(ident,refs) do{ \
-    switch( (refs)->drain ){ \
-        case COREFS_DRAIN_SIGNAL: \
-            read((ident), _drain_storage, sizeof(struct signalfd_siginfo)); \
-        break; \
-        case COREFS_DRAIN_TIMER: \
-            read((ident), _drain_storage, sizeof(uint64_t)); \
-        break; \
-    } \
-}while(0)
+#define COEVT_IS_HUP(kevt)      ((kevt)->events & (EPOLLRDHUP|EPOLLHUP))
+#define COEVT_IS_ONESHOT(evt)   ((evt)->flags & EPOLLONESHOT)
 
 
 #endif

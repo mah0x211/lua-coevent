@@ -32,43 +32,31 @@
 #define ___LOOP_LUA___
 
 #include "coevent.h"
-#include "handler.h"
 
-
-static inline int loop_register( loop_t *loop, sentry_t *s, coevt_t *evt )
+static inline int loop_increase( loop_t *loop, uint8_t incr )
 {
-    int rc = -1;
-    // expand receive events container
     // no buffer
-    if( loop->nreg == INT_MAX ){
+    if( ( INT_MAX - loop->nreg - incr ) <= 0 ){
         errno = ENOBUFS;
-        return rc;
+        return -1;
     }
-    else if( ( loop->nreg + 1 ) > loop->nevs )
+    else if( ( loop->nreg + incr ) > loop->nevs )
     {
         // realloc event container
-        coevt_t *evs = prealloc( (size_t)loop->nevs + 1, coevt_t, loop->evs );
+        kevt_t *evs = prealloc( (size_t)loop->nreg + incr, kevt_t, loop->evs );
         
         if( !evs ){
-            return rc;
+            return -1;
         }
-        loop->nevs++;
+        loop->nevs = loop->nreg + incr;
         loop->evs = evs;
     }
     
-    // register event
-    return coevt_add( loop, s, evt );
+    return 0;
 }
 
 
-static inline int loop_unregister( loop_t *loop, sentry_t *s, coevt_t *evt )
-{
-    return coevt_del( loop, s, evt );
-}
-
-
-static inline void loop_exception( sentry_t *s, sentry_refs_t *refs, 
-                                   int err, const char *msg )
+static inline void loop_exception( sentry_t *s, int err, const char *msg )
 {
     loop_t *loop = s->loop;
     
@@ -80,7 +68,7 @@ static inline void loop_exception( sentry_t *s, sentry_refs_t *refs,
         // push callback function
         lstate_pushref( loop->L, loop->ref_fn );
         // push context and sentry
-        lstate_pushref( loop->L, refs->ctx );
+        lstate_pushref( loop->L, s->ctx );
         lstate_pushref( loop->L, s->ref );
         // push error info table
         lua_createtable( loop->L, 0, 3 );
@@ -88,12 +76,12 @@ static inline void loop_exception( sentry_t *s, sentry_refs_t *refs,
         lstate_str2tbl( loop->L, "message", msg );
         
         // get debug info
-        if( refs->L )
+        if( s->L )
         {
             lua_Debug ar;
             
-            if( lua_getstack( refs->L, 1, &ar ) == 1 && 
-                lua_getinfo( refs->L, "nSl", &ar ) != 0 ){
+            if( lua_getstack( s->L, 1, &ar ) == 1 && 
+                lua_getinfo( s->L, "nSl", &ar ) != 0 ){
                 // debug info
                 lua_pushstring( loop->L, "info" );
                 lua_createtable( loop->L, 0, 5 );

@@ -31,14 +31,55 @@
 #ifndef ___COEVENT_HANDLER___
 #define ___COEVENT_HANDLER___
 
-#include "coevent.h"
+#include "sentry.h"
 
 
 #if HAVE_EPOLL_CREATE1
-#define coevt_create()  epoll_create1(EPOLL_CLOEXEC)
+#define coevt_createfd()  epoll_create1(EPOLL_CLOEXEC)
 #else
-#define coevt_create()  epoll_create(1)
+#define coevt_createfd()  epoll_create(1)
 #endif
+
+
+static inline sentry_t *coevt_getsentry( loop_t *loop, kevt_t *kevt )
+{
+    sentry_t *s = (sentry_t*)fdismember( &loop->fds, kevt->data.fd );
+    int type;
+    
+    if( s && 
+        // reader/writer event
+        ( type = (COSENTRY_T_READER|COSENTRY_T_WRITER) & s->type ) &&
+        !( kevt->events & type ) ){
+        s = (sentry_t*)s->evt.sibling;
+    }
+    
+    return s;
+}
+
+
+// MARK: allocation/deallocation
+static inline void coevt_dealloc( lua_State *L, sentry_t *s )
+{
+    if( s->type == COSENTRY_T_TIMER ){
+        pdealloc( s->evt.ident );
+    }
+    coevt_release( L, s );
+}
+
+// MARK: event handler
+static inline void coevt_drain( sentry_t *s )
+{
+    static uint8_t drain_storage[sizeof( struct signalfd_siginfo )];
+    
+    switch( s->type ){
+        case COSENTRY_T_SIGNAL:
+            read( s->evt.ident, drain_storage, sizeof( struct signalfd_siginfo ) );
+        break;
+        case COSENTRY_T_TIMER:
+            read( s->evt.ident, drain_storage, sizeof( uint64_t ) );
+        break;
+    }
+}
 
 
 static inline int coevt_wait( loop_t *loop, int sec )
@@ -51,37 +92,323 @@ static inline int coevt_wait( loop_t *loop, int sec )
 }
 
 
-static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, coevt_type_t type, 
-                                  coevt_flag_t flg )
+static inline int coevt_add( lua_State *L, sentry_t *s, int oneshot )
 {
-    evt->data.ptr = (void*)s;
-    evt->events = type|flg|EPOLLRDHUP;
-}
-
-
-static inline int coevt_add( loop_t *loop, sentry_t *s, coevt_t *evt )
-{
-    int rc = epoll_ctl( loop->fd, EPOLL_CTL_ADD, s->ident, evt );
+    int rc = loop_increase( s->loop, 1 );
     
-    if( rc == 0 ){
-        loop->nreg++;
+    if( rc == 0 )
+    {
+        if( oneshot ){
+            s->evt.flags |= EPOLLONESHOT;
+        }
+        else {
+            s->evt.flags &= ~EPOLLONESHOT;
+        }
+
+        rc = epoll_ctl( s->loop->fd, EPOLL_CTL_ADD, s->evt.ev.data.fd, &s->evt.ev );
+        if( rc == 0 ){
+            coevt_retain( L, s );
+            sentry_retain( L, s );
+            s->loop->nreg++;
+        }
     }
     
     return rc;
 }
 
-static inline int coevt_del( loop_t *loop, sentry_t *s, coevt_t *evt )
+static inline int coevt_madd( lua_State *L, sentry_t *s, int oneshot )
 {
-    COEVT_UNUSED(evt);
+    int rc = 0;
+    kevt_t kevt = s->evt.ev;
     
-    coevt_t _evt;
-    int rc = epoll_ctl( loop->fd, EPOLL_CTL_DEL, s->ident, &_evt );
+    if( oneshot ){
+        s->evt.flags |= EPOLLONESHOT;
+    }
+    else {
+        s->evt.flags &= ~EPOLLONESHOT;
+    }
     
+    kevt.events |= EPOLLIN|EPOLLOUT;
+    rc = epoll_ctl( s->loop->fd, EPOLL_CTL_MOD, s->evt.ev.data.fd, &kevt );
     if( rc == 0 ){
-        loop->nreg--;
+        coevt_retain( L, s );
+        sentry_retain( L, s );
     }
     
     return rc;
+}
+
+
+static inline int coevt_remove( loop_t *loop, kevt_t *evt )
+{
+    return epoll_ctl( loop->fd, EPOLL_CTL_DEL, evt->data.fd, evt );
+}
+
+
+static inline void coevt_cleanup( lua_State *L, sentry_t *s )
+{
+    sentry_t *sibling = NULL;
+    
+    coevt_release( L, s );
+    sentry_release( L, s );
+    switch( s->type )
+    {
+        case COSENTRY_T_SIGNAL:
+            sigdelset( &s->loop->signals, s->evt.ident );
+        case COSENTRY_T_TIMER:
+            close( s->evt.ev.data.fd );
+            fddelset( &s->loop->fds, s->evt.ev.data.fd );
+        break;
+        case COSENTRY_T_READER:
+        case COSENTRY_T_WRITER:
+            if( ( sibling = s->evt.sibling ) )
+            {
+                s->evt.sibling = sibling->evt.sibling = NULL;
+                if( epoll_ctl( s->loop->fd, EPOLL_CTL_MOD, 
+                               s->evt.ev.data.fd, &s->evt.ev ) != 0 ){
+                    plog( "failed to epoll_ctl_mod: %s", strerror(errno) );
+                }
+            }
+            else {
+                fddelset( &s->loop->fds, s->evt.ev.data.fd );
+            }
+        break;
+    }
+    
+    s->evt.ev.data.fd = -1;
+    s->loop->nreg--;
+}
+
+
+static inline void coevt_del( lua_State *L, sentry_t *s )
+{
+    if( lstate_isref( s->ref ) ){
+        coevt_remove( s->loop, &s->evt.ev );
+        coevt_cleanup( L, s );
+    }
+}
+
+
+static inline void coevt_checkup( lua_State *L, sentry_t *s, kevt_t *evt )
+{
+    if( COEVT_IS_ONESHOT( &s->evt ) ){
+        coevt_cleanup( L, s );
+    }
+    else if( COEVT_IS_HUP( evt ) ){
+        coevt_del( L, s );
+    }
+}
+
+
+// MARK: alloc/watch
+static inline int coevt_timer( lua_State *L, loop_t *loop, double timeout )
+{
+    sentry_t *s = sentry_alloc( L, loop, COSENTRY_T_TIMER );
+    struct timespec *ival = NULL;
+    
+    if( s )
+    {
+        if( ( ival = palloc( struct timespec ) ) ){
+            s->evt.ident = (uintptr_t)ival;
+            s->evt.flags = 0;
+            s->evt.sibling = NULL;
+            s->evt.ev.data.fd = -1;
+            s->evt.ev.events = EPOLLRDHUP|EPOLLIN;
+            coevt_double2timespec( timeout, ival );
+            return 1;
+        }
+    }
+    
+    // got error
+    lua_pushnil( L );
+    lua_pushinteger( L, errno );
+    
+    return 2;
+}
+
+static inline int coevt_timer_watch( lua_State *L, sentry_t *s, int oneshot )
+{
+    if( s->evt.ev.data.fd != -1 ){
+        errno = EEXIST;
+    }
+    else
+    {
+        int fd = timerfd_create( CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC );
+        
+        if( fd != -1 )
+        {
+            s->evt.ev.data.fd = fd;
+            if( fdset_realloc( &s->loop->fds, fd ) == 0 )
+            {
+                struct timespec *interval = (struct timespec*)s->evt.ident;
+                struct timespec now;
+                struct itimerspec spec;
+                
+                // get current time
+                clock_gettime( CLOCK_MONOTONIC, &now );
+                // set first invocation time
+                spec.it_value = (struct timespec){
+                    .tv_sec = now.tv_sec + interval->tv_sec,
+                    .tv_nsec = now.tv_nsec + interval->tv_nsec
+                };
+                
+                // set timespec and register sentry
+                if( timerfd_settime( fd, TFD_TIMER_ABSTIME, &spec, NULL ) == 0 &&
+                    coevt_add( L, s, oneshot ) == 0 ){
+                    fdaddset( &s->loop->fds, fd, (void*)s );
+                    return 0;
+                }
+            }
+            
+            s->evt.ev.data.fd = -1;
+            close( fd );
+        }
+    }
+    
+    // got error
+    lua_pushnumber( L, errno );
+    
+    return 1;
+}
+
+
+
+static inline int coevt_signal( lua_State *L, loop_t *loop, int signo )
+{
+    sentry_t *s = sentry_alloc( L, loop, COSENTRY_T_SIGNAL );
+
+    if( s ){
+        s->evt.ident = signo;
+        s->evt.flags = 0;
+        s->evt.sibling = NULL;
+        s->evt.ev.data.fd = -1;
+        s->evt.ev.events = EPOLLRDHUP|EPOLLIN;
+        return 1;
+    }
+    
+    // got error
+    lua_pushnil( L );
+    lua_pushinteger( L, errno );
+    
+    return 2;
+}
+
+
+static inline int coevt_signal_watch( lua_State *L, sentry_t *s, int oneshot )
+{
+    // set error
+    if( s->evt.ev.data.fd != -1 ){
+        errno = EEXIST;
+    }
+    else
+    {
+        int fd = 0;
+        sigset_t ss;
+        
+        sigemptyset( &ss );
+        sigaddset( &ss, s->evt.ident );
+        
+        // create signalfd with sigset_t
+        fd = signalfd( -1, &ss, SFD_NONBLOCK|SFD_CLOEXEC );
+        if( fd != -1 )
+        {
+            s->evt.ev.data.fd = fd;
+            if( fdset_realloc( &s->loop->fds, fd ) == 0 && 
+                coevt_add( L, s, oneshot ) == 0 ){
+                fdaddset( &s->loop->fds, fd, (void*)s );
+                sigaddset( &s->loop->signals, s->evt.ident );
+                return 1;
+            }
+            
+            s->evt.ev.data.fd = -1;
+            close( fd );
+        }
+    }
+    
+    // got error
+    lua_pushnil( L );
+    lua_pushinteger( L, errno );
+    
+    return 2;
+}
+
+
+static inline int coevt_simplex( lua_State *L, loop_t *loop, int fd, int type, 
+                                 int trigger )
+{
+    sentry_t *s = sentry_alloc( L, loop, type );
+
+    if( s )
+    {
+        uint32_t events = EPOLLRDHUP|(( trigger ) ? EPOLLET : 0);
+        
+        switch( type )
+        {
+            case COSENTRY_T_READER:
+                events |= EPOLLIN;
+            break;
+            case COSENTRY_T_WRITER:
+                events |= EPOLLOUT;
+            break;
+            default:
+                errno = EINVAL;
+                goto FAILED;
+        }
+        
+        s->evt.ident = fd;
+        s->evt.flags = 0;
+        s->evt.sibling = NULL;
+        s->evt.ev.data.fd = -1;
+        s->evt.ev.events = events;
+        
+        return 1;
+    }
+
+FAILED:
+    // got error
+    lua_pushnil( L );
+    lua_pushinteger( L, errno );
+    
+    return 2;
+}
+
+
+static inline int coevt_simplex_watch( lua_State *L, sentry_t *s, int oneshot )
+{
+    if( s->evt.ev.data.fd != -1 ){
+        errno = EEXIST;
+    }
+    else if( fdset_realloc( &s->loop->fds, s->evt.ident ) == 0 )
+    {
+        sentry_t *sreg = fdismember( &s->loop->fds, s->evt.ident );
+        
+        s->evt.ev.data.fd = s->evt.ident;
+        
+        if( sreg )
+        {
+            if( sreg->evt.ev.events & s->type ){
+                errno = EEXIST;
+            }
+            // register sentry
+            else if( coevt_madd( L, s, oneshot ) == 0 ){
+                sreg->evt.sibling = s;
+                s->evt.sibling = sreg;
+                return 0;
+            }
+        }
+        // register sentry
+        else if( coevt_add( L, s, oneshot ) == 0 ){
+            fdaddset( &s->loop->fds, s->evt.ident, (void*)s );
+            return 0;
+        }
+        
+        s->evt.ev.data.fd = -1;
+    }
+    
+    // got error
+    lua_pushnumber( L, errno );
+    
+    return 1;
 }
 
 

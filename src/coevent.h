@@ -37,51 +37,11 @@
 #include <errno.h>
 #include <math.h>
 #include <time.h>
+#include <signal.h>
+#include <limits.h>
 // lualib
 #include <lauxlib.h>
 #include <lualib.h>
-
-#include "config.h"
-#include "coevent_types.h"
-
-// data structure
-// loop
-typedef struct {
-    int fd;
-    int state;
-    int ref_fn;
-    int nevs;
-    int nreg;
-    lua_State *L;
-    coevt_t *evs;
-} loop_t;
-
-
-// sentries
-typedef struct {
-    lua_State *L;
-    int th;
-    int fn;
-    int ctx;
-    // oneshot flag
-    coevt_flag_t oneshot;
-    // drain data
-    COREFS_DRAIN_DEFS();
-} sentry_refs_t;
-
-
-typedef struct {
-    int type;
-    int ref;
-    coevt_flag_t trigger;
-    coevt_ident_t ident;
-    loop_t *loop;
-    sentry_refs_t refs;
-} sentry_t;
-
-
-
-#define COEVT_UNUSED(_a) ((void)_a)
 
 // memory alloc/dealloc
 #define palloc(t)       (t*)malloc( sizeof(t) )
@@ -89,6 +49,9 @@ typedef struct {
 #define pcalloc(n,t)    (t*)calloc( n, sizeof(t) )
 #define prealloc(n,t,p) (t*)realloc( p, (n) * sizeof(t) )
 #define pdealloc(p)     free((void*)p)
+
+
+#define MSTRCAT(_msg)  #_msg
 
 // print message to stdout
 #define plog(fmt,...) \
@@ -112,6 +75,7 @@ typedef struct {
     fprintf( stderr, #f "(): " fmt " : %s\n", ##__VA_ARGS__, strerror(errno) )
 
 
+
 // helper macros for lua_State
 #define lstate_setmetatable(L,tname) \
     (luaL_getmetatable(L,tname),lua_setmetatable(L,-2))
@@ -120,7 +84,7 @@ typedef struct {
     (lua_pushvalue(L,idx),luaL_ref( L, LUA_REGISTRYINDEX ))
 
 #define lstate_isref(ref) \
-    ((ref) > LUA_REFNIL)
+    ((ref) > 0)
 
 #define lstate_pushref(L,ref) \
     lua_rawgeti( L, LUA_REGISTRYINDEX, ref )
@@ -147,30 +111,63 @@ typedef struct {
 }while(0)
 
 
-// define prototypes
-LUALIB_API int luaopen_coevent( lua_State *L );
-LUALIB_API int luaopen_coevent_loop( lua_State *L );
-LUALIB_API int luaopen_coevent_reader( lua_State *L );
-LUALIB_API int luaopen_coevent_writer( lua_State *L );
-LUALIB_API int luaopen_coevent_signal( lua_State *L );
-LUALIB_API int luaopen_coevent_timer( lua_State *L );
+#include "config.h"
+#include "coevent_types.h"
+#include "fdset.h"
 
 
 // define module names
-#define COLOOP_MT   "coevent.loop"
-#define COREADER_MT "coevent.reader"
-#define COWRITER_MT "coevent.writer"
-#define COSIGNAL_MT "coevent.signal"
-#define COTIMER_MT  "coevent.timer"
+#define COLOOP_MT       "coevent.loop"
+#define COSIGNAL_MT     "coevent.signal"
+#define COTIMER_MT      "coevent.timer"
+#define COREADER_MT     "coevent.reader"
+#define COWRITER_MT     "coevent.writer"
+
+// define prototypes
+LUALIB_API int luaopen_coevent( lua_State *L );
+LUALIB_API int luaopen_coevent_loop( lua_State *L );
+LUALIB_API int luaopen_coevent_signal( lua_State *L );
+LUALIB_API int luaopen_coevent_timer( lua_State *L );
+LUALIB_API int luaopen_coevent_reader( lua_State *L );
+LUALIB_API int luaopen_coevent_writer( lua_State *L );
 
 
-// define loop types
-#define CORUN_NONE       0
-#define CORUN_ONCE       1
-#define CORUN_FOREVER    2
+// data structure
+// loop
+typedef struct {
+    int fd;
+    int state;
+    int ref_fn;
+    int nevs;
+    int nreg;
+    sigset_t signals;
+    fdset_t fds;
+    lua_State *L;
+    kevt_t *evs;
+} loop_t;
 
 
-static inline void double2timespec( double tval, struct timespec *ts )
+// sentries
+enum COSENTRY_TYPES {
+    COSENTRY_T_READER = FDSET_READ,
+    COSENTRY_T_WRITER = FDSET_WRITE,
+    COSENTRY_T_SIGNAL,
+    COSENTRY_T_TIMER
+};
+
+typedef struct {
+    loop_t *loop;
+    lua_State *L;
+    int ref;
+    int th;
+    int fn;
+    int ctx;
+    uint8_t type;
+    coevt_t evt;
+} sentry_t;
+
+
+static inline void coevt_double2timespec( double tval, struct timespec *ts )
 {
     double sec = 0, nsec = 0;
     
@@ -182,9 +179,9 @@ static inline void double2timespec( double tval, struct timespec *ts )
 
 // metanames
 // module definition register
-static inline int define_mt( lua_State *L, const char *tname, 
-                             struct luaL_Reg mmethod[], 
-                             struct luaL_Reg method[] )
+static inline int coevt_define_mt( lua_State *L, const char *tname, 
+                                   struct luaL_Reg mmethod[], 
+                                   struct luaL_Reg method[] )
 {
     int i;
     
@@ -212,10 +209,66 @@ static inline int define_mt( lua_State *L, const char *tname,
 
 
 // common metamethods
-#define tostring_mt(L,tname) ({ \
+#define TOSTRING_MT(L,tname) ({ \
     lua_pushfstring( L, tname ": %p", lua_touserdata( L, 1 ) ); \
     1; \
 })
+
+
+// MARK: check arguments
+static inline int coevt_checkargs( lua_State *L )
+{
+    // check arguments
+    // arg#2 oneshot
+    luaL_checktype( L, 2, LUA_TBOOLEAN );
+    // arg#3 callback function
+    luaL_checktype( L, 3, LUA_TFUNCTION );
+    // arg#4 user-context
+    // arg#n opts
+    
+    // return boolean value of oneshot argument
+    return lua_toboolean( L, 2 );
+}
+
+
+// MARK: thread=coroutine
+static inline int coevt_thread_alloc( lua_State *L, sentry_t *s )
+{
+    // create thread
+    if( ( s->L = lua_newthread( L ) ) ){
+        // retain thread
+        s->th = lstate_ref( L, -1 );
+        lua_pop( L, 1 );
+        return 0;
+    }
+    
+    return -1;
+}
+
+static inline void coevt_thread_release( lua_State *L, sentry_t *s )
+{
+    lstate_unref( L, s->th );
+    s->th = LUA_NOREF;
+    s->L = NULL;
+}
+
+
+// MARK: retain/release references
+static inline void coevt_release( lua_State *L, sentry_t *s )
+{
+    lstate_unref( L, s->fn );
+    lstate_unref( L, s->ctx );
+    s->fn = s->ctx = LUA_NOREF;
+    coevt_thread_release( L, s );
+}
+
+static inline void coevt_retain( lua_State *L, sentry_t *s )
+{
+    coevt_release( L, s );
+    // retain callback and usercontext
+    s->fn = lstate_ref( L, 3 );
+    s->ctx = lstate_ref( L, 4 );
+}
 
 
 #endif

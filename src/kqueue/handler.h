@@ -32,9 +32,55 @@
 #define ___COEVENT_HANDLER___
 
 #include "coevent.h"
+#include "sentry.h"
 
-#define coevt_create()  kqueue()
 
+#define coevt_createfd()  kqueue()
+
+static inline sentry_t *coevt_getsentry( loop_t *loop, kevt_t *evt )
+{
+    int rc;
+    int type;
+    
+    switch( evt->filter ){
+        case EVFILT_TIMER:
+            return (sentry_t*)evt->udata;
+        break;
+        case EVFILT_SIGNAL:
+            if( sigismember( &loop->signals, evt->ident ) ){
+                return (sentry_t*)evt->udata;
+            }
+        break;
+        case EVFILT_READ:
+            type = COSENTRY_T_READER;
+            if( ( rc = fdismember( &loop->fds, evt->ident, COSENTRY_T_READER ) ) == 1 ){
+                return (sentry_t*)evt->udata;
+            }
+        break;
+        case EVFILT_WRITE:
+            type = COSENTRY_T_WRITER;
+            if( ( rc = fdismember( &loop->fds, evt->ident, COSENTRY_T_WRITER ) ) == 1 ){
+                return (sentry_t*)evt->udata;
+            }
+        break;
+    }
+    
+    return NULL;
+}
+
+
+// MARK: allocation/deallocation
+static inline void coevt_dealloc( lua_State *L, sentry_t *s )
+{
+    if( s->type == COSENTRY_T_TIMER ){
+        pdealloc( s->evt.ident );
+    }
+    coevt_release( L, s );
+}
+
+
+// MARK: event handler
+#define coevt_drain(...)
 
 static inline int coevt_wait( loop_t *loop, int sec )
 {
@@ -44,39 +90,194 @@ static inline int coevt_wait( loop_t *loop, int sec )
     return kevent( loop->fd, NULL, 0, loop->evs, (int)loop->nreg, &ts );
 }
 
-
-static inline void coevt_rw_init( coevt_t *evt, sentry_t *s, coevt_type_t type, 
-                                  coevt_flag_t flg )
+static inline int coevt_add( lua_State *L, sentry_t *s, int oneshot )
 {
-    EV_SET( evt, s->ident, type, flg, 0, 0, (void*)s );
-}
-
-
-static inline int coevt_add( loop_t *loop, sentry_t *s, coevt_t *evt )
-{
-    COEVT_UNUSED(s);
-    int rc = 0;
+    int rc = loop_increase( s->loop, 1 );
     
-    evt->flags |= EV_ADD;
-    if( ( rc = kevent( loop->fd, evt, 1, NULL, 0, NULL ) ) == 0 ){
-        loop->nreg++;
+    if( rc == 0 )
+    {
+        s->evt.flags &= ~( EV_DELETE|EV_ONESHOT );
+        s->evt.flags |= EV_ADD|( oneshot ? EV_ONESHOT : 0 );
+        rc = kevent( s->loop->fd, &s->evt, 1, NULL, 0, NULL );
+        if( rc == 0 ){
+            coevt_retain( L, s );
+            sentry_retain( L, s );
+            s->loop->nreg++;
+        }
     }
     
     return rc;
 }
 
-static inline int coevt_del( loop_t *loop, sentry_t *s, coevt_t *evt )
+static inline void coevt_cleanup( lua_State *L, sentry_t *s )
 {
-    COEVT_UNUSED(s);
-    int rc = 0;
+    coevt_release( L, s );
+    sentry_release( L, s );
+    s->loop->nreg--;
+    switch( s->type )
+    {
+        case COSENTRY_T_SIGNAL:
+            sigdelset( &s->loop->signals, s->evt.ident );
+        break;
+        case COSENTRY_T_READER:
+        case COSENTRY_T_WRITER:
+            fddelset( &s->loop->fds, s->evt.ident, s->type );
+        break;
+    }
+}
+
+static inline int coevt_remove( loop_t *loop, kevt_t *evt )
+{
+    evt->flags &= ~( EV_ADD|EV_ONESHOT );
+    evt->flags |= EV_DELETE;
+    return kevent( loop->fd, evt, 1, NULL, 0, NULL );
+}
+
+
+static inline void coevt_del( lua_State *L, sentry_t *s )
+{
+    if( lstate_isref( s->ref ) ){
+        coevt_remove( s->loop, &s->evt );
+        coevt_cleanup( L, s );
+    }
+}
+
+
+static inline void coevt_checkup( lua_State *L, sentry_t *s, coevt_t *evt )
+{
+    if( COEVT_IS_ONESHOT( &s->evt ) ){
+        coevt_cleanup( L, s );
+    }
+    else if( COEVT_IS_HUP( evt ) ){
+        coevt_del( L, s );
+    }
+}
+
+
+// MARK: alloc/watch
+static inline int coevt_timer( lua_State *L, loop_t *loop, double timeout )
+{
+    sentry_t *s = sentry_alloc( L, loop, COSENTRY_T_TIMER );
+    // interval timespec
+    struct timespec *ival = NULL;
     
-    evt->flags = EV_DELETE;
-    if( ( rc = kevent( loop->fd, evt, 1, NULL, 0, NULL ) ) == 0 ){
-        loop->nreg--;
+    if( s && ( ival = palloc( struct timespec ) ) )
+    {
+        coevt_double2timespec( timeout, ival );
+        EV_SET( &s->evt, (uintptr_t)ival, EVFILT_TIMER, 0, NOTE_NSECONDS, 
+                ival->tv_sec * 1000000000 + ival->tv_nsec, (void*)s );
+        return 1;
     }
     
-    return rc;
+    // got error
+    lua_pushnil( L );
+    lua_pushinteger( L, errno );
+    
+    return 2;
 }
+
+static inline int coevt_timer_watch( lua_State *L, sentry_t *s, int oneshot )
+{
+    // register sentry
+    if( coevt_add( L, s, oneshot ) == 0 ){
+        return 0;
+    }
+    
+    // got error
+    lua_pushnumber( L, errno );
+    
+    return 1;
+}
+
+
+static inline int coevt_signal( lua_State *L, loop_t *loop, int signo )
+{
+    sentry_t *s = sentry_alloc( L, loop, COSENTRY_T_SIGNAL );
+    
+    if( s ){
+        EV_SET( &s->evt, (uintptr_t)signo, EVFILT_SIGNAL, 0, 0, 0, (void*)s );
+        return 1;
+    }
+    
+    // got error
+    lua_pushnil( L );
+    lua_pushinteger( L, errno );
+    
+    return 2;
+}
+
+static inline int coevt_signal_watch( lua_State *L, sentry_t *s, int oneshot )
+{
+    // set error
+    if( sigismember( &s->loop->signals, s->evt.ident ) ){
+        errno = EEXIST;
+    }
+    // register sentry
+    else if( coevt_add( L, s, oneshot ) == 0 ){
+        sigaddset( &s->loop->signals, s->evt.ident );
+        return 0;
+    }
+    
+    // got error
+    lua_pushnumber( L, errno );
+    
+    return 1;
+}
+
+
+static inline int coevt_simplex( lua_State *L, loop_t *loop, int fd, int type, 
+                                 int trigger )
+{
+    sentry_t *s = sentry_alloc( L, loop, type );
+    
+    if( s && fdset_realloc( &s->loop->fds, fd ) == 0 )
+    {
+        int16_t filter = 0;
+        
+        switch( type ){
+            case COSENTRY_T_READER:
+                filter = EVFILT_READ;
+            break;
+            case COSENTRY_T_WRITER:
+                filter = EVFILT_WRITE;
+            break;
+        }
+        
+        EV_SET( &s->evt, (uintptr_t)fd, filter, trigger ? EV_CLEAR : 0, 0, 0, 
+                (void*)s );
+        
+        return 1;
+    }
+    
+    // got error
+    lua_pushnil( L );
+    lua_pushinteger( L, errno );
+    
+    return 2;
+}
+
+static inline int coevt_simplex_watch( lua_State *L, sentry_t *s, int oneshot )
+{
+    // set error
+    if( fdismember( &s->loop->fds, s->evt.ident, s->type ) == 1 ){
+        errno = EEXIST;
+    }
+    // register sentry
+    else if( fdaddset( &s->loop->fds, s->evt.ident, s->type ) == 0 )
+    {
+        if( coevt_add( L, s, oneshot ) == 0 ){
+            return 0;
+        }
+        fddelset( &s->loop->fds, s->evt.ident, s->type );
+    }
+    
+    // got error
+    lua_pushnumber( L, errno );
+    
+    return 1;
+}
+
 
 
 #endif
+

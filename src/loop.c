@@ -28,25 +28,128 @@
  *
  */
 
-#include "loop.h"
-#include "sentry.h"
+#include "handler.h"
 
+// define loop types
+#define CORUN_NONE       0
+#define CORUN_ONCE       1
+#define CORUN_FOREVER    2
+
+static int runloop( lua_State *L, loop_t *loop, int timeout )
+{
+    lua_State *th = NULL;
+    sentry_t *s = NULL;
+    kevt_t *kevt = NULL;
+    int nevt, i, narg, rc;
+
+LOOP_CONTINUE:
+    nevt = coevt_wait( loop, timeout );
+    
+    // check errno
+    if( nevt == -1 )
+    {
+        switch( errno ){
+            // ignore
+            case ENOENT:
+                errno = 0;
+            break;
+            
+            case EACCES:
+            case EFAULT:
+            case EBADF:
+            case EINTR:
+            case ENOMEM:
+            default:
+                goto LOOP_DONE;
+        }
+    }
+    
+    for( i = 0; i < nevt; i++ )
+    {
+        kevt = &loop->evs[i];
+        s = coevt_getsentry( loop, kevt );
+        if( !s ){
+            coevt_remove( loop, kevt );
+        }
+        // create coroutine
+        else if( !s->L && coevt_thread_alloc( L, s ) != 0 ){
+            loop_exception( s, errno, lua_tostring( L, -1 ) );
+        }
+        else
+        {
+            th = s->L;
+            // drain event data
+            coevt_drain( s );
+            
+            // push callback function
+            if( lua_status( th ) != LUA_YIELD ){
+                lstate_pushref( th, s->fn );
+                lstate_pushref( th, s->ctx );
+                lstate_pushref( th, s->ref );
+                lua_pushboolean( th, COEVT_IS_HUP( kevt ) );
+                narg = 3;
+            }
+            else {
+                narg = 0;
+            }
+            
+            coevt_checkup( L, s, kevt );
+            
+            // run on coroutine
+            rc = lua_resume( th, narg );
+            switch( rc ){
+                case 0:
+                break;
+                case LUA_YIELD:
+                    if( !lstate_isref( s->ref ) ){
+                        loop_exception( s, -rc, 
+                            "could not suspend unregistered event"
+                        );
+                    }
+                break;
+                case LUA_ERRMEM:
+                case LUA_ERRERR:
+                case LUA_ERRSYNTAX:
+                case LUA_ERRRUN:
+                    loop_exception( s, -rc, lua_tostring( th, -1 ) );
+                    coevt_thread_release( L, s );
+                break;
+            }
+        }
+    }
+    
+    // check loop state
+    switch( loop->state ){
+        case CORUN_FOREVER:
+            goto LOOP_CONTINUE;
+        case CORUN_ONCE:
+            if( loop->nreg > 0 ){
+                goto LOOP_CONTINUE;
+            }
+        break;
+    }
+
+LOOP_DONE:
+    if( errno == 0 ){
+        return 0;
+    }
+    
+    // got error
+    lua_pushinteger( L, errno );
+    
+    return 1;
+
+}
 
 static int run_lua( lua_State *L )
 {
     loop_t *loop = luaL_checkudata( L, 1, COLOOP_MT );
     
-    if( loop->state == CORUN_ONCE || loop->state == CORUN_FOREVER ){
-        errno = EALREADY;
-    }
-    else
+    // set error
+    if( loop->state != CORUN_ONCE || loop->state != CORUN_FOREVER )
     {
         // defaout timeout: 1 sec
-        int ts = 1;
-        sentry_t *s = NULL;
-        sentry_refs_t *refs = NULL;
-        coevt_t *evt = NULL;
-        int nevt, i, narg, hup, rc;
+        int timeout = 1;
         
         // check args
         // loop state (default once)
@@ -59,141 +162,17 @@ static int run_lua( lua_State *L )
         // timeout
         if( !lua_isnoneornil( L, 3 ) )
         {
-            ts = luaL_checkint( L, 3 );
-            if( ts < -1 ){
-                ts = 1;
+            timeout = luaL_checkint( L, 3 );
+            if( timeout < -1 ){
+                timeout = 1;
             }
         }
         
-LOOP_CONTINUE:
-        nevt = coevt_wait( loop, ts );
-        
-        // check errno
-        if( nevt == -1 )
-        {
-            switch( errno ){
-                // ignore
-                case ENOENT:
-                    errno = 0;
-                break;
-                
-                case EACCES:
-                case EFAULT:
-                case EBADF:
-                case EINTR:
-                case ENOMEM:
-                default:
-                    goto LOOP_DONE;
-            }
-        }
-        else
-        {
-            errno = 0;
-            for( i = 0; i < nevt; i++ )
-            {
-                evt = &loop->evs[i];
-                s = COEVT_UDATA( evt );
-                refs = &s->refs;
-                if( COREFS_IS_REFERENCED( refs ) )
-                {
-                    // drain event data
-                    COREFS_DRAIN_DATA( s->ident, refs );
-                    
-                    hup = COEVT_IS_HUP( evt );
-                    // push callback function
-                    if( lua_status( refs->L ) != LUA_YIELD ){
-                        lstate_pushref( refs->L, refs->fn );
-                        lstate_pushref( refs->L, refs->ctx );
-                        lstate_pushref( refs->L, s->ref );
-                        lua_pushboolean( refs->L, hup );
-                        narg = 3;
-                    }
-                    else {
-                        narg = 0;
-                    }
-                    
-                    // unregister hup/oneshot sentry
-                    if( hup ){
-                        sentry_unregister( s, evt );
-                        sentry_dispose( L, s );
-                    }
-                    else if( COREFS_IS_ONESHOT( refs ) ){
-                        sentry_unregister( s, evt );
-                        sentry_release_refs( L, s );
-                    }
-                    
-                    // run on coroutine
-                    rc = lua_resume( refs->L, narg );
-                    switch( rc ){
-                        case 0:
-                        break;
-                        case LUA_YIELD:
-                            if( !COREFS_IS_REFERENCED( refs ) ){
-                                loop_exception( 
-                                    s, refs, -rc, 
-                                    "could not suspend unregistered event"
-                                );
-                            }
-                        break;
-                        case LUA_ERRMEM:
-                        case LUA_ERRERR:
-                        case LUA_ERRSYNTAX:
-                        case LUA_ERRRUN:
-                            loop_exception( 
-                                s, refs, -rc, lua_tostring( refs->L, -1 )
-                            );
-                            if( COREFS_IS_REFERENCED( refs ) )
-                            {
-                                // release coroutine
-                                COREFS_RELEASE_THREAD( L, refs );
-                                // create coroutine
-                                refs->L = lua_newthread( L );
-                                if( refs->L ){
-                                    // retain coroutine
-                                    refs->th = lstate_ref( L, -1 );
-                                    lua_pop( loop->L, 1 );
-                                }
-                                else {
-                                    loop_exception( 
-                                        s, refs, errno, 
-                                        "could not create coroutine"
-                                    );
-                                    sentry_unregister( s, evt );
-                                    // release references
-                                    sentry_release_refs( L, s );
-                                }
-                            }
-                        break;
-                    }
-                }
-                // remove unregistered sentry
-                else {
-                    sentry_unregister( s, evt );
-                    sentry_dispose( L, s );
-                }
-            }
-        }
-        
-        // check loop state
-        switch( loop->state ){
-            case CORUN_FOREVER:
-                goto LOOP_CONTINUE;
-            case CORUN_ONCE:
-                if( loop->nreg > 0 ){
-                    goto LOOP_CONTINUE;
-                }
-            break;
-        }
+        return runloop( L, loop, timeout );
     }
-    
-LOOP_DONE:
-    if( errno == 0 ){
-        return 0;
-    }
-    
-    // got error
+
+    errno = EALREADY;
     lua_pushinteger( L, errno );
-    
     return 1;
 }
 
@@ -204,6 +183,16 @@ static int stop_lua( lua_State *L )
     
     loop->state = CORUN_NONE;
     lua_pushboolean( L, 1 );
+    
+    return 1;
+}
+
+
+static int size_lua( lua_State *L )
+{
+    loop_t *loop = luaL_checkudata( L, 1, COLOOP_MT );
+    
+    lua_pushinteger( L, loop->nevs );
     
     return 1;
 }
@@ -224,10 +213,19 @@ static int gc_lua( lua_State *L )
     return 0;
 }
 
+static int len_lua( lua_State *L )
+{
+    loop_t *loop = luaL_checkudata( L, 1, COLOOP_MT );
+    
+    lua_pushinteger( L, loop->nreg );
+    
+    return 1;
+}
+
 
 static int tostring_lua( lua_State *L )
 {
-    return tostring_mt( L, COLOOP_MT );
+    return TOSTRING_MT( L, COLOOP_MT );
 }
 
 
@@ -256,20 +254,27 @@ static int alloc_lua( lua_State *L )
     
     // create event descriptor and event buffer
     if( ( loop = lua_newuserdata( L, sizeof( loop_t ) ) ) &&
-        ( loop->evs = pnalloc( (size_t)nevtbuf, coevt_t ) ) )
+        ( loop->evs = pnalloc( (size_t)nevtbuf, kevt_t ) ) )
     {
-        loop->fd = coevt_create();
-        if( loop->fd != -1 ){
-            lstate_setmetatable( L, COLOOP_MT );
-            loop->L = L;
-            loop->state = CORUN_NONE;
-            loop->nevs = nevtbuf;
-            loop->nreg = 0;
-            // retain callback
-            loop->ref_fn = lstate_ref( L, 2 );
+        if( fdset_alloc( &loop->fds, (size_t)nevtbuf ) == 0 )
+        {
+            loop->fd = coevt_createfd();
+            if( loop->fd != -1 ){
+                lstate_setmetatable( L, COLOOP_MT );
+                loop->L = L;
+                loop->state = CORUN_NONE;
+                loop->nevs = nevtbuf;
+                loop->nreg = 0;
+                // retain callback
+                loop->ref_fn = lstate_ref( L, 2 );
+                sigemptyset( &loop->signals );
+                
+                return 1;
+            }
             
-            return 1;
+            fdset_dealloc( &loop->fds );
         }
+        
         pdealloc( loop->evs );
     }
     
@@ -287,16 +292,18 @@ LUALIB_API int luaopen_coevent_loop( lua_State *L )
     struct luaL_Reg mmethod[] = {
         { "__gc", gc_lua },
         { "__tostring", tostring_lua },
+        { "__len", len_lua },
         { NULL, NULL }
     };
     struct luaL_Reg method[] = {
         { "run", run_lua },
         { "stop", stop_lua },
+        { "size", size_lua },
         { NULL, NULL }
     };
 
     // define metatable
-    define_mt( L, COLOOP_MT, mmethod, method );
+    coevt_define_mt( L, COLOOP_MT, mmethod, method );
     // add methods
     lua_pushcfunction( L, alloc_lua );
 

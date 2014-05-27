@@ -20,20 +20,70 @@
  *  THE SOFTWARE.
  *
  *
- *  sentry.c
+ *  timer.c
  *  lua-coevent
  *
- *  Created by Masatoshi Teruya on 14/05/13.
+ *  Created by Masatoshi Teruya on 14/05/22.
  *  Copyright 2014 Masatoshi Teruya. All rights reserved.
  *
  */
 
 #include "handler.h"
 
-int sentry_gc( lua_State *L )
+
+static int watch_lua( lua_State *L )
 {
-    sentry_t *s = lua_touserdata( L, 1 );
-    coevt_dealloc( L, s );
+    sentry_t *s = luaL_checkudata( L, 1, COTIMER_MT );
+    // check arguments
+    int oneshot = coevt_checkargs( L );
     
+    return coevt_timer_watch( L, s, oneshot );
+}
+
+static int unwatch_lua( lua_State *L )
+{
+    sentry_t *s = luaL_checkudata( L, 1, COTIMER_MT );
+    
+    coevt_del( L, s );
     return 0;
 }
+
+static int tostring_lua( lua_State *L )
+{
+    return TOSTRING_MT( L, COTIMER_MT );
+}
+
+static int alloc_lua( lua_State *L )
+{
+    loop_t *loop = luaL_checkudata( L, 1, COLOOP_MT );
+    double timeout = luaL_checknumber( L, 2 );
+    
+    // check arguments
+    if( timeout <= 0 ){
+        return luaL_argerror( L, 2, "timeout must be larger than 0 sec" );
+    }
+    
+    return coevt_timer( L, loop, timeout );
+}
+
+
+LUALIB_API int luaopen_coevent_timer( lua_State *L )
+{
+    struct luaL_Reg mmethod[] = {
+        { "__gc", sentry_gc },
+        { "__tostring", tostring_lua },
+        { NULL, NULL }
+    };
+    struct luaL_Reg method[] = {
+        { "watch", watch_lua },
+        { "unwatch", unwatch_lua },
+        { NULL, NULL }
+    };
+    
+    coevt_define_mt( L, COTIMER_MT, mmethod, method );
+    // add methods
+    lua_pushcfunction( L, alloc_lua );
+    
+    return 1;
+}
+
