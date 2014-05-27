@@ -38,7 +38,7 @@ all function will throw lua exception if an invalid argument is passed. (usually
 
 **Functions**
 
-- watcher, errno = coevent.signal( loop, signo:number, ... )
+- watcher, errno = coevent.signal( loop, signo:number )
 
 **Methods**
 
