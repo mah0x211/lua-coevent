@@ -220,19 +220,17 @@ static inline void coevt_checkup( lua_State *L, sentry_t *s, kevt_t *evt )
 static inline int coevt_timer( lua_State *L, loop_t *loop, double timeout )
 {
     sentry_t *s = sentry_alloc( L, loop, COSENTRY_T_TIMER );
-    struct timespec *ival = NULL;
+    struct itimerspec *ival = NULL;
     
-    if( s )
-    {
-        if( ( ival = palloc( struct timespec ) ) ){
-            s->evt.ident = (uintptr_t)ival;
-            s->evt.flags = 0;
-            s->evt.sibling = NULL;
-            s->evt.ev.data.fd = -1;
-            s->evt.ev.events = EPOLLRDHUP|EPOLLIN;
-            coevt_double2timespec( timeout, ival );
-            return 1;
-        }
+    if( s && ( ival = palloc( struct itimerspec ) ) ){
+        s->evt.ident = (uintptr_t)ival;
+        s->evt.flags = 0;
+        s->evt.sibling = NULL;
+        s->evt.ev.data.fd = -1;
+        s->evt.ev.events = EPOLLRDHUP|EPOLLIN;
+        ival->it_value = (struct timespec){ .tv_sec = 0, .tv_nsec = 0 };
+        coevt_double2timespec( timeout, &ival->it_interval );
+        return 1;
     }
     
     // got error
@@ -256,21 +254,19 @@ static inline int coevt_timer_watch( lua_State *L, sentry_t *s, int oneshot )
             s->evt.ev.data.fd = fd;
             if( fdset_realloc( &s->loop->fds, fd ) == 0 )
             {
-                struct timespec *interval = (struct timespec*)s->evt.ident;
+                struct itimerspec *interval = (struct itimerspec*)s->evt.ident;
                 struct timespec now;
-                struct itimerspec spec;
                 
                 // get current time
                 clock_gettime( CLOCK_MONOTONIC, &now );
                 // set first invocation time
-                spec.it_interval = *interval;
-                spec.it_value = (struct timespec){
-                    .tv_sec = now.tv_sec + interval->tv_sec,
-                    .tv_nsec = now.tv_nsec + interval->tv_nsec
+                interval->it_value = (struct timespec){
+                    .tv_sec = now.tv_sec + interval->it_interval.tv_sec,
+                    .tv_nsec = now.tv_nsec + interval->it_interval.tv_nsec
                 };
                 
                 // set timespec and register sentry
-                if( timerfd_settime( fd, TFD_TIMER_ABSTIME, &spec, NULL ) == 0 &&
+                if( timerfd_settime( fd, TFD_TIMER_ABSTIME, interval, NULL ) == 0 &&
                     coevt_add( L, s, oneshot ) == 0 ){
                     fdaddset( &s->loop->fds, fd, (void*)s );
                     return 0;
