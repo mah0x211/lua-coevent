@@ -55,6 +55,29 @@ static inline int loop_increase( loop_t *loop, uint8_t incr )
     return 0;
 }
 
+static inline int get_traceback( lua_State *L, lua_State *th, const char *msg )
+{
+    // get stack trace
+#if LUA_VERSION_NUM >= 502
+    luaL_traceback( L, th, msg, 1 );
+
+#else
+    // get debug module
+    lua_getfield( th, LUA_GLOBALSINDEX, "debug" );
+    if( lua_istable( th, -1 ) == 0 ){
+        return 0;
+    }
+    lua_getfield( th, -1, "traceback" );
+    if( lua_isfunction( th, -1 ) == 0 ){
+        return 0;
+    }
+    lua_pushstring( th, msg );
+    lua_call( th, 1, 1 );
+    lua_xmove( th, L, 1 );
+#endif
+
+    return 1;
+}
 
 static inline void loop_exception( sentry_t *s, int err, const char *msg )
 {
@@ -73,13 +96,12 @@ static inline void loop_exception( sentry_t *s, int err, const char *msg )
         // push error info table
         lua_createtable( loop->L, 0, 3 );
         lstate_num2tbl( loop->L, "errno", err );
-        lstate_str2tbl( loop->L, "message", msg );
         
-        // get debug info
         if( s->L )
         {
             lua_Debug ar;
             
+            // get debug info
             if( lua_getstack( s->L, 1, &ar ) == 1 && 
                 lua_getinfo( s->L, "nSl", &ar ) != 0 ){
                 // debug info
@@ -94,6 +116,13 @@ static inline void loop_exception( sentry_t *s, int err, const char *msg )
             }
             else {
                 lstate_str2tbl( loop->L, "info", "could not get debug info" );
+            }
+            // set trackback
+            if( get_traceback( loop->L, s->L, msg ) ){
+                lua_setfield( loop->L, -2, "message" );
+            }
+            else {
+                lstate_str2tbl( loop->L, "message", msg );
             }
         }
         
