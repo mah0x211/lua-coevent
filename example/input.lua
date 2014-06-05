@@ -42,7 +42,7 @@ local loop = event.loop();
 -- create io watcher: 0 = stdin
 local oneshot = false;
 local edgeTrigger = true;
-local watcher = event.reader( loop, 0, edgeTrigger );
+local watcher = event.input( loop, 0, edgeTrigger );
 
 watcher:watch( oneshot, callback, { count = 0 } );
 print( 'type some keys then press enter.' );

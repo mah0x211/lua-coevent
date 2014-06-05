@@ -42,7 +42,7 @@ local loop = event.loop();
 -- create io watcher: 1 = stdout
 local oneshot = false;
 local edgeTrigger = true;
-local watcher = event.writer( loop, 1, edgeTrigger );
+local watcher = event.output( loop, 1, edgeTrigger );
 
 watcher:watch( oneshot, callback, { count = 0 } );
 print( 'done', loop:run() );
