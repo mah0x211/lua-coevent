@@ -130,6 +130,7 @@ LUALIB_API int luaopen_coevent_signal( lua_State *L );
 LUALIB_API int luaopen_coevent_timer( lua_State *L );
 LUALIB_API int luaopen_coevent_input( lua_State *L );
 LUALIB_API int luaopen_coevent_output( lua_State *L );
+LUALIB_API int luaopen_coevent_io( lua_State *L );
 
 
 // data structure

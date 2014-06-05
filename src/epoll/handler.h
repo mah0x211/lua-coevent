@@ -428,4 +428,36 @@ static inline int coevt_simplex_watch( lua_State *L, sentry_t *s, int oneshot )
 }
 
 
+static inline int coevt_duplex( lua_State *L, loop_t *loop, int fd, 
+                                int trigger )
+{
+    sentry_t *si = NULL;
+    sentry_t *so = NULL;
+    
+    if( ( si = sentry_alloc( L, loop, COSENTRY_T_INPUT ) ) &&
+        ( so = sentry_alloc( L, loop, COSENTRY_T_OUTPUT ) ) )
+    {
+        uint32_t events = EPOLLRDHUP|(( trigger ) ? EPOLLET : 0);
+        
+        si->evt.ident = so->evt.ident = fd;
+        si->evt.flags = so->evt.flags = 0;
+        si->evt.sibling = so->evt.sibling = NULL;
+        si->evt.ev.data.fd = so->evt.ev.data.fd = -1;
+        
+        si->evt.ev.events = events|EPOLLIN;
+        so->evt.ev.events = events|EPOLLOUT;
+        
+        return 2;
+    }
+    
+    // got error
+    lua_pushnil( L );
+    lua_pushnil( L );
+    lua_pushinteger( L, errno );
+    
+    return 3;
+}
+
+
+
 #endif

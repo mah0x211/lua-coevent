@@ -277,6 +277,32 @@ static inline int coevt_simplex_watch( lua_State *L, sentry_t *s, int oneshot )
 }
 
 
+static inline int coevt_duplex( lua_State *L, loop_t *loop, int fd, 
+                                int trigger )
+{
+    sentry_t *si = NULL;
+    sentry_t *so = NULL;
+    
+    if( ( si = sentry_alloc( L, loop, COSENTRY_T_INPUT ) ) &&
+        ( so = sentry_alloc( L, loop, COSENTRY_T_OUTPUT ) ) &&
+        fdset_realloc( &loop->fds, fd ) == 0 )
+    {
+        uint16_t flags = trigger ? EV_CLEAR : 0;
+        
+        EV_SET( &si->evt, (uintptr_t)fd, EVFILT_READ, flags, 0, 0, (void*)si );
+        EV_SET( &so->evt, (uintptr_t)fd, EVFILT_WRITE, flags, 0, 0, (void*)so );
+        
+        return 2;
+    }
+    
+    // got error
+    lua_pushnil( L );
+    lua_pushnil( L );
+    lua_pushinteger( L, errno );
+    
+    return 3;
+}
+
 
 #endif
 

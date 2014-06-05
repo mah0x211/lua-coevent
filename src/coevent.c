@@ -49,6 +49,9 @@ LUALIB_API int luaopen_coevent( lua_State *L )
     // output
     luaopen_coevent_output( L );
     lua_setfield( L, -2, "output" );
+    // input/output
+    luaopen_coevent_io( L );
+    lua_setfield( L, -2, "io" );
     
     return 1;
 }
