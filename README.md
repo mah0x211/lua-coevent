@@ -112,11 +112,11 @@ print( 'done', loop:run() );
 ```
 
 
-## coevent.reader
+## coevent.input
 
 **Functions**
 
-- watcher, errno = coevent.reader( loop, fd:number [, edgeTrigger:boolean] )
+- watcher, errno = coevent.input( loop, fd:number [, edgeTrigger:boolean] )
 
 **Methods**
 
@@ -142,18 +142,18 @@ local loop = event.loop();
 -- create io watcher: 0 = stdin
 local oneshot = false;
 local edgeTrigger = true;
-local watcher = event.reader( loop, 0, edgeTrigger );
+local watcher = event.input( loop, 0, edgeTrigger );
 
 watcher:watch( oneshot, callback, { count = 0 } );
 print( 'type some keys then press enter.' );
 print( 'done', loop:run() );
 ```
 
-## coevent.writer
+## coevent.output
 
 **Functions**
 
-- watcher, errno = coevent.writer( loop, fd:number [, edgeTrigger:boolean] )
+- watcher, errno = coevent.output( loop, fd:number [, edgeTrigger:boolean] )
 
 **Methods**
 
@@ -179,7 +179,7 @@ local loop = event.loop();
 -- create io watcher: 1 = stdout
 local oneshot = false;
 local edgeTrigger = true;
-local watcher = event.writer( loop, 1, edgeTrigger );
+local watcher = event.output( loop, 1, edgeTrigger );
 
 watcher:watch( oneshot, callback, { count = 0 } );
 print( 'done', loop:run() );
