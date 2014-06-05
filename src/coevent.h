@@ -120,16 +120,16 @@
 #define COLOOP_MT       "coevent.loop"
 #define COSIGNAL_MT     "coevent.signal"
 #define COTIMER_MT      "coevent.timer"
-#define COREADER_MT     "coevent.reader"
-#define COWRITER_MT     "coevent.writer"
+#define COINPUT_MT      "coevent.input"
+#define COOUTPUT_MT     "coevent.output"
 
 // define prototypes
 LUALIB_API int luaopen_coevent( lua_State *L );
 LUALIB_API int luaopen_coevent_loop( lua_State *L );
 LUALIB_API int luaopen_coevent_signal( lua_State *L );
 LUALIB_API int luaopen_coevent_timer( lua_State *L );
-LUALIB_API int luaopen_coevent_reader( lua_State *L );
-LUALIB_API int luaopen_coevent_writer( lua_State *L );
+LUALIB_API int luaopen_coevent_input( lua_State *L );
+LUALIB_API int luaopen_coevent_output( lua_State *L );
 
 
 // data structure
@@ -150,8 +150,8 @@ typedef struct {
 
 // sentries
 enum COSENTRY_TYPES {
-    COSENTRY_T_READER = FDSET_READ,
-    COSENTRY_T_WRITER = FDSET_WRITE,
+    COSENTRY_T_INPUT = FDSET_READ,
+    COSENTRY_T_OUTPUT = FDSET_WRITE,
     COSENTRY_T_SIGNAL,
     COSENTRY_T_TIMER
 };

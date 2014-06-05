@@ -50,14 +50,14 @@ static inline sentry_t *coevt_getsentry( loop_t *loop, kevt_t *kevt )
     {
         switch( s->type )
         {
-            // switch reader to writer if writable event
-            case COSENTRY_T_READER:
+            // switch input to output if output event
+            case COSENTRY_T_INPUT:
                 if( kevt->events & EPOLLOUT ){
                     s = (sentry_t*)s->evt.sibling;
                 }
             break;
-            // switch writer to reader if readable event
-            case COSENTRY_T_WRITER:
+            // switch output to input if input event
+            case COSENTRY_T_OUTPUT:
                 if( kevt->events & EPOLLIN ){
                     s = (sentry_t*)s->evt.sibling;
                 }
@@ -173,8 +173,8 @@ static inline void coevt_cleanup( lua_State *L, sentry_t *s )
             fddelset( &s->loop->fds, evt->data.fd );
             close( s->evt.ev.data.fd );
         break;
-        case COSENTRY_T_READER:
-        case COSENTRY_T_WRITER:
+        case COSENTRY_T_INPUT:
+        case COSENTRY_T_OUTPUT:
             if( s->evt.sibling ){
                 sentry_t *sibling = (sentry_t*)s->evt.sibling;
                 
@@ -360,10 +360,10 @@ static inline int coevt_simplex( lua_State *L, loop_t *loop, int fd, int type,
         
         switch( type )
         {
-            case COSENTRY_T_READER:
+            case COSENTRY_T_INPUT:
                 events |= EPOLLIN;
             break;
-            case COSENTRY_T_WRITER:
+            case COSENTRY_T_OUTPUT:
                 events |= EPOLLOUT;
             break;
             default:

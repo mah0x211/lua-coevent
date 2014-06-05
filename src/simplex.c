@@ -41,12 +41,12 @@ static inline int watch_lua( lua_State *L, const char *tname )
 
 static int watch_r_lua( lua_State *L )
 {
-    return watch_lua( L, COREADER_MT );
+    return watch_lua( L, COINPUT_MT );
 }
 
 static int watch_w_lua( lua_State *L )
 {
-    return watch_lua( L, COWRITER_MT );
+    return watch_lua( L, COOUTPUT_MT );
 }
 
 
@@ -60,23 +60,23 @@ static inline int unwatch_lua( lua_State *L, const char *tname )
 
 static int unwatch_r_lua( lua_State *L )
 {
-    return unwatch_lua( L, COREADER_MT );
+    return unwatch_lua( L, COINPUT_MT );
 }
 
 static int unwatch_w_lua( lua_State *L )
 {
-    return unwatch_lua( L, COWRITER_MT );
+    return unwatch_lua( L, COOUTPUT_MT );
 }
 
 
 static int tostring_r_lua( lua_State *L )
 {
-    return TOSTRING_MT( L, COREADER_MT );
+    return TOSTRING_MT( L, COINPUT_MT );
 }
 
 static int tostring_w_lua( lua_State *L )
 {
-    return TOSTRING_MT( L, COWRITER_MT );
+    return TOSTRING_MT( L, COOUTPUT_MT );
 }
 
 
@@ -104,16 +104,16 @@ static inline int alloc_lua( lua_State *L, int type )
 
 static int alloc_r_lua( lua_State *L )
 {
-    return alloc_lua( L, COSENTRY_T_READER );
+    return alloc_lua( L, COSENTRY_T_INPUT );
 }
 
 static int alloc_w_lua( lua_State *L )
 {
-    return alloc_lua( L, COSENTRY_T_WRITER );
+    return alloc_lua( L, COSENTRY_T_OUTPUT );
 }
 
 
-LUALIB_API int luaopen_coevent_reader( lua_State *L )
+LUALIB_API int luaopen_coevent_input( lua_State *L )
 {
     struct luaL_Reg mmethod[] = {
         { "__gc", sentry_gc },
@@ -126,14 +126,14 @@ LUALIB_API int luaopen_coevent_reader( lua_State *L )
         { NULL, NULL }
     };
 
-    coevt_define_mt( L, COREADER_MT, mmethod, method );
+    coevt_define_mt( L, COINPUT_MT, mmethod, method );
     // add methods
     lua_pushcfunction( L, alloc_r_lua );
     
     return 1;
 }
 
-LUALIB_API int luaopen_coevent_writer( lua_State *L )
+LUALIB_API int luaopen_coevent_output( lua_State *L )
 {
     struct luaL_Reg mmethod[] = {
         { "__gc", sentry_gc },
@@ -146,7 +146,7 @@ LUALIB_API int luaopen_coevent_writer( lua_State *L )
         { NULL, NULL }
     };
 
-    coevt_define_mt( L, COWRITER_MT, mmethod, method );
+    coevt_define_mt( L, COOUTPUT_MT, mmethod, method );
     // add methods
     lua_pushcfunction( L, alloc_w_lua );
     

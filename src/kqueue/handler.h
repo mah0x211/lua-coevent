@@ -49,12 +49,12 @@ static inline sentry_t *coevt_getsentry( loop_t *loop, kevt_t *evt )
             }
         break;
         case EVFILT_READ:
-            if( fdismember( &loop->fds, evt->ident, COSENTRY_T_READER ) == 1 ){
+            if( fdismember( &loop->fds, evt->ident, COSENTRY_T_INPUT ) == 1 ){
                 return (sentry_t*)evt->udata;
             }
         break;
         case EVFILT_WRITE:
-            if( fdismember( &loop->fds, evt->ident, COSENTRY_T_WRITER ) == 1 ){
+            if( fdismember( &loop->fds, evt->ident, COSENTRY_T_OUTPUT ) == 1 ){
                 return (sentry_t*)evt->udata;
             }
         break;
@@ -118,8 +118,8 @@ static inline void coevt_cleanup( lua_State *L, sentry_t *s )
         case COSENTRY_T_SIGNAL:
             sigdelset( &s->loop->signals, s->evt.ident );
         break;
-        case COSENTRY_T_READER:
-        case COSENTRY_T_WRITER:
+        case COSENTRY_T_INPUT:
+        case COSENTRY_T_OUTPUT:
             fddelset( &s->loop->fds, s->evt.ident, s->type );
         break;
     }
@@ -229,15 +229,15 @@ static inline int coevt_simplex( lua_State *L, loop_t *loop, int fd, int type,
 {
     sentry_t *s = sentry_alloc( L, loop, type );
     
-    if( s && fdset_realloc( &s->loop->fds, fd ) == 0 )
+    if( s && fdset_realloc( &loop->fds, fd ) == 0 )
     {
         int16_t filter = 0;
         
         switch( type ){
-            case COSENTRY_T_READER:
+            case COSENTRY_T_INPUT:
                 filter = EVFILT_READ;
             break;
-            case COSENTRY_T_WRITER:
+            case COSENTRY_T_OUTPUT:
                 filter = EVFILT_WRITE;
             break;
         }

@@ -51,11 +51,11 @@ static inline sentry_t *sentry_alloc( lua_State *L, loop_t *loop, int type )
             case COSENTRY_T_TIMER:
                 lstate_setmetatable( L, COTIMER_MT );
             break;
-            case COSENTRY_T_READER:
-                lstate_setmetatable( L, COREADER_MT );
+            case COSENTRY_T_INPUT:
+                lstate_setmetatable( L, COINPUT_MT );
             break;
-            case COSENTRY_T_WRITER:
-                lstate_setmetatable( L, COWRITER_MT );
+            case COSENTRY_T_OUTPUT:
+                lstate_setmetatable( L, COOUTPUT_MT );
             break;
             default:
                 errno = EINVAL;

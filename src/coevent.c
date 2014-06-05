@@ -43,12 +43,12 @@ LUALIB_API int luaopen_coevent( lua_State *L )
     // timer
     luaopen_coevent_timer( L );
     lua_setfield( L, -2, "timer" );
-    // reader
-    luaopen_coevent_reader( L );
-    lua_setfield( L, -2, "reader" );
-    // writer
-    luaopen_coevent_writer( L );
-    lua_setfield( L, -2, "writer" );
+    // input
+    luaopen_coevent_input( L );
+    lua_setfield( L, -2, "input" );
+    // output
+    luaopen_coevent_output( L );
+    lua_setfield( L, -2, "output" );
     
     return 1;
 }
