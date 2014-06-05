@@ -40,7 +40,7 @@ static int runloop( lua_State *L, loop_t *loop )
     lua_State *th = NULL;
     sentry_t *s = NULL;
     kevt_t *kevt = NULL;
-    int nevt, i, narg, rc;
+    int nevt, i, rc;
     
 LOOP_CONTINUE:
     nevt = coevt_wait( loop );
@@ -83,19 +83,17 @@ LOOP_CONTINUE:
             // push callback function
             if( lua_status( th ) != LUA_YIELD ){
                 lstate_pushref( th, s->fn );
-                lstate_pushref( th, s->ctx );
-                lstate_pushref( th, s->ref );
-                lua_pushboolean( th, COEVT_IS_HUP( kevt ) );
-                narg = 3;
             }
-            else {
-                narg = 0;
-            }
+            // push arguments
+            lstate_pushref( th, s->ctx );
+            lstate_pushref( th, s->ref );
+            lua_pushboolean( th, COEVT_IS_HUP( kevt ) );
             
+            // check sentry
             coevt_checkup( L, s, kevt );
             
             // run on coroutine
-            rc = lua_resume( th, narg );
+            rc = lua_resume( th, 3 );
             switch( rc ){
                 case 0:
                 break;
