@@ -31,9 +31,8 @@
 #include "handler.h"
 
 // define loop types
-#define CORUN_NONE       0
-#define CORUN_ONCE       1
-#define CORUN_FOREVER    2
+#define CORUN_STOP  0
+#define CORUN_LOOP  1
 
 static int runloop( lua_State *L, loop_t *loop )
 {
@@ -59,7 +58,7 @@ LOOP_CONTINUE:
             case EINTR:
             case ENOMEM:
             default:
-                goto LOOP_DONE;
+                goto FAILURE;
         }
     }
     
@@ -116,21 +115,13 @@ LOOP_CONTINUE:
     }
     
     // check loop state
-    switch( loop->state ){
-        case CORUN_FOREVER:
-            goto LOOP_CONTINUE;
-        case CORUN_ONCE:
-            if( loop->nreg > 0 ){
-                goto LOOP_CONTINUE;
-            }
-        break;
-    }
-
-LOOP_DONE:
-    if( errno == 0 ){
-        return 0;
+    if( loop->state == CORUN_LOOP && loop->nreg > 0 ){
+        goto LOOP_CONTINUE;
     }
     
+    return 0;
+    
+FAILURE:
     // got error
     lua_pushinteger( L, errno );
     
@@ -143,23 +134,18 @@ static int run_lua( lua_State *L )
     loop_t *loop = luaL_checkudata( L, 1, COLOOP_MT );
     
     // set error
-    if( loop->state != CORUN_ONCE || loop->state != CORUN_FOREVER )
+    if( loop->state != CORUN_LOOP )
     {
         // defaout timeout: 1 sec
         int timeout = 1;
         
         // check args
-        // loop state (default once)
-        loop->state = CORUN_ONCE;
-        if( !lua_isnoneornil( L, 2 ) ){
-            luaL_checktype( L, 2, LUA_TBOOLEAN );
-            // set to RUNLOOP_FOREVER
-            loop->state += lua_toboolean( L, 2 );
-        }
+        // set loop state
+        loop->state = CORUN_LOOP;
         // timeout
-        if( !lua_isnoneornil( L, 3 ) )
+        if( !lua_isnoneornil( L, 2 ) )
         {
-            timeout = luaL_checkint( L, 3 );
+            timeout = luaL_checkint( L, 2 );
             if( timeout < -1 ){
                 timeout = 1;
             }
@@ -180,7 +166,7 @@ static int stop_lua( lua_State *L )
 {
     loop_t *loop = luaL_checkudata( L, 1, COLOOP_MT );
     
-    loop->state = CORUN_NONE;
+    loop->state = CORUN_STOP;
     lua_pushboolean( L, 1 );
     
     return 1;
@@ -261,7 +247,7 @@ static int alloc_lua( lua_State *L )
             if( loop->fd != -1 ){
                 lstate_setmetatable( L, COLOOP_MT );
                 loop->L = L;
-                loop->state = CORUN_NONE;
+                loop->state = CORUN_STOP;
                 loop->nevs = nevtbuf;
                 loop->nreg = 0;
                 // retain callback
