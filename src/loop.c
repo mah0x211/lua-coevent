@@ -167,9 +167,8 @@ static int stop_lua( lua_State *L )
     loop_t *loop = luaL_checkudata( L, 1, COLOOP_MT );
     
     loop->state = CORUN_STOP;
-    lua_pushboolean( L, 1 );
     
-    return 1;
+    return 0;
 }
 
 
