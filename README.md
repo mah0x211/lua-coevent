@@ -30,7 +30,7 @@ all function will throw lua exception if an invalid argument is passed. (usually
 
 **Methods**
 
-- errno = loop:run( forever:boolean, timeout:number )
+- errno = loop:run( timeout:number )
 - ok = loop:stop()
 
 
