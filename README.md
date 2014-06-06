@@ -31,7 +31,7 @@ all function will throw lua exception if an invalid argument is passed. (usually
 **Methods**
 
 - errno = loop:run( timeout:number )
-- ok = loop:stop()
+- loop:stop()
 
 
 ## coevent.signal
