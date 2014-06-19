@@ -92,7 +92,11 @@ LOOP_CONTINUE:
             coevt_checkup( L, s, kevt );
             
             // run on coroutine
+#if LUA_VERSION_NUM >= 502
+            rc = lua_resume( th, L, 3 );
+#else
             rc = lua_resume( th, 3 );
+#endif
             switch( rc ){
                 case 0:
                 break;
