@@ -42,6 +42,7 @@ all function will throw lua exception if an invalid argument is passed. (usually
 
 **Methods**
 
+- signo = watcher:ident()
 - errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
 - errno = watcher:unwatch()
 
@@ -83,6 +84,7 @@ print( 'done', loop:run() );
 
 **Methods**
 
+- timeout = watcher:ident()
 - errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
 - errno = watcher:unwatch()
 
@@ -120,6 +122,7 @@ print( 'done', loop:run() );
 
 **Methods**
 
+- fd = watcher:ident()
 - errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
 - errno = watcher:unwatch()
 
@@ -157,6 +160,7 @@ print( 'done', loop:run() );
 
 **Methods**
 
+- fd = watcher:ident()
 - errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
 - errno = watcher:unwatch()
 
