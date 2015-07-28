@@ -31,11 +31,11 @@ local event = require('coevent');
 -- https://github.com/mah0x211/lua-signal
 local signal = require('signal');
 -- block SIGINT
-signal.block( signal.INT );
+signal.block( signal.SIGINT );
 
 local function callback( ctx, watcher, hup )
     ctx.count = ctx.count + 1;
-    print( 'callback', ctx.count );
+    print( watcher:ident(), 'callback', ctx.count );
     if ctx.count > 2 then
         watcher:unwatch();
     end
@@ -44,7 +44,7 @@ end
 -- create loop
 local loop = event.loop();
 -- create signal SIGINT watcher
-local watcher = event.signal( loop, signal.INT );
+local watcher = event.signal( loop, signal.SIGINT );
 local oneshot = false;
 
 watcher:watch( oneshot, callback, { count = 0 } );

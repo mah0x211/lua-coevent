@@ -31,7 +31,7 @@ local event = require('coevent');
 
 local function callback( ctx, watcher, hup )
     ctx.count = ctx.count + 1;
-    print( 'callback', ctx.count );
+    print( watcher:ident(), 'callback', ctx.count );
     if ctx.count > 2 then
         watcher:unwatch();
     end
