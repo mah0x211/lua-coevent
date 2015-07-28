@@ -30,6 +30,25 @@
 
 #include "handler.h"
 
+static inline int ident_lua( lua_State *L, const char *tname )
+{
+    sentry_t *s = luaL_checkudata( L, 1, tname );
+    
+    lua_pushinteger( L, s->evt.ident );
+    
+    return 1;
+}
+
+static int ident_r_lua( lua_State *L )
+{
+    return ident_lua( L, COINPUT_MT );
+}
+
+static int ident_w_lua( lua_State *L )
+{
+    return ident_lua( L, COOUTPUT_MT );
+}
+
 
 static inline int watch_lua( lua_State *L, const char *tname )
 {
@@ -121,6 +140,7 @@ LUALIB_API int luaopen_coevent_input( lua_State *L )
         { NULL, NULL }
     };
     struct luaL_Reg method[] = {
+        { "ident", ident_r_lua },
         { "watch", watch_r_lua },
         { "unwatch", unwatch_r_lua },
         { NULL, NULL }
@@ -141,6 +161,7 @@ LUALIB_API int luaopen_coevent_output( lua_State *L )
         { NULL, NULL }
     };
     struct luaL_Reg method[] = {
+        { "ident", ident_w_lua },
         { "watch", watch_w_lua },
         { "unwatch", unwatch_w_lua },
         { NULL, NULL }

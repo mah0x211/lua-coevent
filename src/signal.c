@@ -31,6 +31,16 @@
 #include "handler.h"
 
 
+static int ident_lua( lua_State *L )
+{
+    sentry_t *s = luaL_checkudata( L, 1, COSIGNAL_MT );
+
+    lua_pushinteger( L, s->evt.ident );
+    
+    return 1;
+}
+
+
 static int watch_lua( lua_State *L )
 {
     sentry_t *s = luaL_checkudata( L, 1, COSIGNAL_MT );
@@ -79,6 +89,7 @@ LUALIB_API int luaopen_coevent_signal( lua_State *L )
         { NULL, NULL }
     };
     struct luaL_Reg method[] = {
+        { "ident", ident_lua },
         { "watch", watch_lua },
         { "unwatch", unwatch_lua },
         { NULL, NULL }

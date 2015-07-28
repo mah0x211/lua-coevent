@@ -31,6 +31,17 @@
 #include "handler.h"
 
 
+static int ident_lua( lua_State *L )
+{
+    sentry_t *s = luaL_checkudata( L, 1, COTIMER_MT );
+    struct timespec *ts = (struct timespec*)s->evt.ident;
+    
+    lua_pushnumber( L, (double)ts->tv_sec + (double)ts->tv_nsec/1000000000.0 );
+    
+    return 1;
+}
+
+
 static int watch_lua( lua_State *L )
 {
     sentry_t *s = luaL_checkudata( L, 1, COTIMER_MT );
@@ -40,6 +51,7 @@ static int watch_lua( lua_State *L )
     return coevt_timer_watch( L, s, oneshot );
 }
 
+
 static int unwatch_lua( lua_State *L )
 {
     sentry_t *s = luaL_checkudata( L, 1, COTIMER_MT );
@@ -48,10 +60,12 @@ static int unwatch_lua( lua_State *L )
     return 0;
 }
 
+
 static int tostring_lua( lua_State *L )
 {
     return TOSTRING_MT( L, COTIMER_MT );
 }
+
 
 static int alloc_lua( lua_State *L )
 {
@@ -75,6 +89,7 @@ LUALIB_API int luaopen_coevent_timer( lua_State *L )
         { NULL, NULL }
     };
     struct luaL_Reg method[] = {
+        { "ident", ident_lua },
         { "watch", watch_lua },
         { "unwatch", unwatch_lua },
         { NULL, NULL }
