@@ -239,7 +239,7 @@ static inline int coevt_timer( lua_State *L, loop_t *loop, double timeout )
     
     // got error
     lua_pushnil( L );
-    lua_pushinteger( L, errno );
+    lua_pushstring( L, strerror( errno ) );
     
     return 2;
 }
@@ -283,7 +283,7 @@ static inline int coevt_timer_watch( lua_State *L, sentry_t *s, int oneshot )
     }
     
     // got error
-    lua_pushnumber( L, errno );
+    lua_pushstring( L, strerror( errno ) );
     
     return 1;
 }
@@ -305,7 +305,7 @@ static inline int coevt_signal( lua_State *L, loop_t *loop, int signo )
     
     // got error
     lua_pushnil( L );
-    lua_pushinteger( L, errno );
+    lua_pushstring( L, strerror( errno ) );
     
     return 2;
 }
@@ -343,7 +343,7 @@ static inline int coevt_signal_watch( lua_State *L, sentry_t *s, int oneshot )
     }
     
     // got error
-    lua_pushinteger( L, errno );
+    lua_pushstring( L, strerror( errno ) );
     
     return 1;
 }
@@ -383,7 +383,7 @@ static inline int coevt_simplex( lua_State *L, loop_t *loop, int fd, int type,
 FAILED:
     // got error
     lua_pushnil( L );
-    lua_pushinteger( L, errno );
+    lua_pushstring( L, strerror( errno ) );
     
     return 2;
 }
@@ -422,7 +422,7 @@ static inline int coevt_simplex_watch( lua_State *L, sentry_t *s, int oneshot )
     }
     
     // got error
-    lua_pushnumber( L, errno );
+    lua_pushstring( L, strerror( errno ) );
     
     return 1;
 }
@@ -453,7 +453,7 @@ static inline int coevt_duplex( lua_State *L, loop_t *loop, int fd,
     // got error
     lua_pushnil( L );
     lua_pushnil( L );
-    lua_pushinteger( L, errno );
+    lua_pushstring( L, strerror( errno ) );
     
     return 3;
 }

@@ -127,9 +127,13 @@ LOOP_CONTINUE:
     
 FAILURE:
     // got error
-    lua_pushinteger( L, errno );
+    if( errno ){
+        lua_pushstring( L, strerror( errno ) );
+        return 1;
+    }
     
-    return 1;
+    // no error
+    return 0;
 
 }
 
@@ -137,7 +141,6 @@ static int run_lua( lua_State *L )
 {
     loop_t *loop = luaL_checkudata( L, 1, COLOOP_MT );
     
-    // set error
     if( loop->state != CORUN_LOOP )
     {
         // defaout timeout: 1 sec
@@ -160,8 +163,9 @@ static int run_lua( lua_State *L )
         return runloop( L, loop );
     }
 
-    errno = EALREADY;
-    lua_pushinteger( L, errno );
+    // ret error
+    lua_pushstring( L, strerror( EALREADY ) );
+    
     return 1;
 }
 
@@ -269,7 +273,7 @@ static int alloc_lua( lua_State *L )
     
     // got error
     lua_pushnil( L );
-    lua_pushinteger( L, errno );
+    lua_pushstring( L, strerror( errno ) );
     
     return 2;
 }
