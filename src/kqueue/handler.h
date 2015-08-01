@@ -178,7 +178,7 @@ static inline int coevt_timer( lua_State *L, loop_t *loop, double timeout )
 static inline int coevt_timer_watch( lua_State *L, sentry_t *s, int oneshot )
 {
     // register sentry
-    if( coevt_add( L, s, oneshot ) == 0 ){
+    if( s->evt.flags & EV_ADD || coevt_add( L, s, oneshot ) == 0 ){
         return 0;
     }
     
@@ -207,9 +207,9 @@ static inline int coevt_signal( lua_State *L, loop_t *loop, int signo )
 
 static inline int coevt_signal_watch( lua_State *L, sentry_t *s, int oneshot )
 {
-    // set error
+    // already watched
     if( sigismember( &s->loop->signals, s->evt.ident ) ){
-        errno = EEXIST;
+        return 0;
     }
     // register sentry
     else if( coevt_add( L, s, oneshot ) == 0 ){
@@ -257,9 +257,9 @@ static inline int coevt_simplex( lua_State *L, loop_t *loop, int fd, int type,
 
 static inline int coevt_simplex_watch( lua_State *L, sentry_t *s, int oneshot )
 {
-    // set error
+    // already watched
     if( fdismember( &s->loop->fds, s->evt.ident, s->type ) == 1 ){
-        errno = EEXIST;
+        return 0;
     }
     // register sentry
     else if( fdaddset( &s->loop->fds, s->evt.ident, s->type ) == 0 )

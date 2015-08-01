@@ -246,8 +246,9 @@ static inline int coevt_timer( lua_State *L, loop_t *loop, double timeout )
 
 static inline int coevt_timer_watch( lua_State *L, sentry_t *s, int oneshot )
 {
+    // already watched
     if( s->evt.ev.data.fd != -1 ){
-        errno = EEXIST;
+        return 0;
     }
     else
     {
@@ -313,9 +314,9 @@ static inline int coevt_signal( lua_State *L, loop_t *loop, int signo )
 
 static inline int coevt_signal_watch( lua_State *L, sentry_t *s, int oneshot )
 {
-    // set error
+    // already watched
     if( s->evt.ev.data.fd != -1 ){
-        errno = EEXIST;
+        return 0;
     }
     else
     {
@@ -391,8 +392,9 @@ FAILED:
 
 static inline int coevt_simplex_watch( lua_State *L, sentry_t *s, int oneshot )
 {
+    // already watched
     if( s->evt.ev.data.fd != -1 ){
-        errno = EEXIST;
+        return 0;
     }
     else if( fdset_realloc( &s->loop->fds, s->evt.ident ) == 0 )
     {
