@@ -26,11 +26,11 @@ all function will throw lua exception if an invalid argument is passed. (usually
 
 **Functions**
 
-- loop, errno = coevent.loop( evtbuf:number(default: 128), exceptionHandler:function )
+- loop, err = coevent.loop( evtbuf:number(default: 128), exceptionHandler:function )
 
 **Methods**
 
-- errno = loop:run( timeout:number )
+- err = loop:run( timeout:number )
 - loop:stop()
 
 
@@ -38,13 +38,13 @@ all function will throw lua exception if an invalid argument is passed. (usually
 
 **Functions**
 
-- watcher, errno = coevent.signal( loop, signo:number )
+- watcher, err = coevent.signal( loop, signo:number )
 
 **Methods**
 
 - signo = watcher:ident()
-- errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
-- errno = watcher:unwatch()
+- err = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
+- watcher:unwatch()
 
 
 **Example**
@@ -80,13 +80,13 @@ print( 'done', loop:run() );
 
 **Functions**
 
-- watcher, errno = coevent.timer( loop, timeout:number )
+- watcher, err = coevent.timer( loop, timeout:number )
 
 **Methods**
 
 - timeout = watcher:ident()
-- errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
-- errno = watcher:unwatch()
+- err = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
+- watcher:unwatch()
 
 
 **Example**
@@ -118,13 +118,13 @@ print( 'done', loop:run() );
 
 **Functions**
 
-- watcher, errno = coevent.input( loop, fd:number [, edgeTrigger:boolean] )
+- watcher, err = coevent.input( loop, fd:number [, edgeTrigger:boolean] )
 
 **Methods**
 
 - fd = watcher:ident()
-- errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
-- errno = watcher:unwatch()
+- err = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
+- watcher:unwatch()
 
 
 **Example**
@@ -156,13 +156,13 @@ print( 'done', loop:run() );
 
 **Functions**
 
-- watcher, errno = coevent.output( loop, fd:number [, edgeTrigger:boolean] )
+- watcher, err = coevent.output( loop, fd:number [, edgeTrigger:boolean] )
 
 **Methods**
 
 - fd = watcher:ident()
-- errno = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
-- errno = watcher:unwatch()
+- err = watcher:watch( oneshot:boolean, callback:function, context:[any type] )
+- watcher:unwatch()
 
 
 **Example**
