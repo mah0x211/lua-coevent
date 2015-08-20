@@ -225,6 +225,7 @@ static int alloc_lua( lua_State *L )
 {
     loop_t *loop = NULL;
     int nevtbuf = 128;
+    int fn = LUA_NOREF;
     
     // check arguments
     // arg#1 number of event buffer size
@@ -242,6 +243,9 @@ static int alloc_lua( lua_State *L )
     // arg#2 callback function
     if( !lua_isnoneornil( L, 2 ) ){
         luaL_checktype( L, 2, LUA_TFUNCTION );
+        // retain function
+        lua_settop( L, 2 );
+        fn = lstate_ref( L );
     }
     
     // create event descriptor and event buffer
@@ -258,7 +262,7 @@ static int alloc_lua( lua_State *L )
                 loop->nevs = nevtbuf;
                 loop->nreg = 0;
                 // retain callback
-                loop->ref_fn = lstate_ref( L, 2 );
+                loop->ref_fn = fn;
                 sigemptyset( &loop->signals );
                 
                 return 1;
@@ -270,7 +274,8 @@ static int alloc_lua( lua_State *L )
         pdealloc( loop->evs );
     }
     
-    
+    // release function
+    lstate_unref( L, fn );
     // got error
     lua_pushnil( L );
     lua_pushstring( L, strerror( errno ) );

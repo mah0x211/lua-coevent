@@ -80,8 +80,8 @@
 #define lstate_setmetatable(L,tname) \
     (luaL_getmetatable(L,tname),lua_setmetatable(L,-2))
 
-#define lstate_ref(L,idx) \
-    (lua_pushvalue(L,idx),luaL_ref( L, LUA_REGISTRYINDEX ))
+#define lstate_ref(L) \
+    luaL_ref(L,LUA_REGISTRYINDEX)
 
 #define lstate_refat(L,idx) \
     (lua_pushvalue(L,idx),luaL_ref(L,LUA_REGISTRYINDEX))
@@ -242,7 +242,7 @@ static inline int coevt_thread_alloc( lua_State *L, sentry_t *s )
     // create thread
     if( ( s->L = lua_newthread( L ) ) ){
         // retain thread
-        s->th = lstate_ref( L, -1 );
+        s->th = lstate_ref( L );
         lua_pop( L, 1 );
         return 0;
     }
@@ -271,8 +271,8 @@ static inline void coevt_retain( lua_State *L, sentry_t *s )
 {
     coevt_release( L, s );
     // retain callback and usercontext
-    s->fn = lstate_ref( L, 3 );
-    s->ctx = lstate_ref( L, 4 );
+    s->fn = lstate_refat( L, 3 );
+    s->ctx = lstate_refat( L, 4 );
 }
 
 
