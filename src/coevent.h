@@ -83,6 +83,9 @@
 #define lstate_ref(L,idx) \
     (lua_pushvalue(L,idx),luaL_ref( L, LUA_REGISTRYINDEX ))
 
+#define lstate_refat(L,idx) \
+    (lua_pushvalue(L,idx),luaL_ref(L,LUA_REGISTRYINDEX))
+
 #define lstate_isref(ref) \
     ((ref) > 0)
 
