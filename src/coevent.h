@@ -90,7 +90,7 @@
     lua_rawgeti( L, LUA_REGISTRYINDEX, ref )
 
 #define lstate_unref(L,ref) \
-    luaL_unref( L, LUA_REGISTRYINDEX, ref )
+    (luaL_unref( L, LUA_REGISTRYINDEX, ref ),LUA_NOREF)
 
 #define lstate_fn2tbl(L,k,v) do{ \
     lua_pushstring(L,k); \
