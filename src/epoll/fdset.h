@@ -29,7 +29,7 @@ enum FDSET_MEMBER_TYPE {
 
 static inline int fdset_alloc( fdset_t *set, size_t nfd )
 {
-    set->evs = pcalloc( (size_t)nfd, void* );
+    set->evs = pcnalloc( (size_t)nfd, void* );
     
     if( set->evs ){
         set->nevs = nfd;
