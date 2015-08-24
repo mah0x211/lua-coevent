@@ -2,6 +2,8 @@
 
 coroutine based kqueue/epoll module.
 
+**NOTE: Do not use this module. this module is under heavy development.**
+
 ## Installation
 
 ```sh
