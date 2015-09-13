@@ -20,30 +20,35 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 
-  example/writer.lua
+  example/writable_ev.lua
   lua-coevent
-
   Created by Masatoshi Teruya on 14/05/13.
   
 --]]
 
-local event = require('coevent');
+local coevent = require('coevent').new();
 
-local function callback( ctx, watcher, hup )
+local function callback( ctx, ev, evtype, hup, handler )
     ctx.count = ctx.count + 1;
-    print( watcher:ident(), 'callback', ctx.count );
+    print( 'callback', ev, evtype, hup, handler, ctx.count );
     if ctx.count > 2 then
-        watcher:unwatch();
+        ev:unwatch();
     end
 end
 
--- create loop
-local loop = event.loop();
--- create io watcher: 1 = stdout
+-- create handler
+local h = assert( coevent:createHandler( nil, callback, { count = 0 } ) );
+-- create signal SIGINT watcher
 local oneshot = false;
-local edgeTrigger = true;
-local watcher = event.output( loop, 1, edgeTrigger );
+local edge = false;
+local ev = assert( h:writable( 1, oneshot, edge ) );
 
-watcher:watch( oneshot, callback, { count = 0 } );
-print( 'done', loop:run() );
 
+print(
+    'calling callback function by handler <' ..
+    tostring(h) ..
+    '> via <' ..
+    tostring(ev) ..
+    '> on fd is writable'
+);
+print( 'done', coevent:start() );

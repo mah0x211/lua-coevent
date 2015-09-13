@@ -20,30 +20,38 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 
-  example/timer.lua
+  example/timer_ev.lua
   lua-coevent
 
   Created by Masatoshi Teruya on 14/05/13.
   
 --]]
 
-local event = require('coevent');
-
-local function callback( ctx, watcher, hup )
+local coevent = require('coevent').new();
+ 
+local function callback( ctx, ev, evtype, hup, handler )
     ctx.count = ctx.count + 1;
-    print( watcher:ident(), 'callback', ctx.count );
-    if ctx.count > 2 then
-        watcher:unwatch();
+    print( 'callback', ev, evtype, hup, handler, ctx.count );
+    if ctx.count == 1 then
+        print( 'unwatch', ev:unwatch() );
+        print( 'watch', assert( ev:watch() ) );
+    elseif ctx.count > 1 then
+        print( 'unwatch', assert( ev:unwatch() ) );
     end
 end
 
--- create loop
-local loop = event.loop();
+-- creat handler
+local h = assert( coevent:createHandler( nil, callback, { count = 0 } ) );
 -- create timer watcher
-local watcher = event.timer( loop, 2 );
 local oneshot = false;
+local ev = assert( h:timer( 1, oneshot ) );
 
-watcher:watch( oneshot, callback, { count = 0 } );
-print( 'calling callback function every 2 sec.' );
-print( 'done', loop:run() );
+print(
+    'calling callback function by handler <' ..
+    tostring(h) ..
+    '> via <' ..
+    tostring(ev) ..
+    '> on every 1 sec'
+);
+print( 'done', coevent:start() );
 

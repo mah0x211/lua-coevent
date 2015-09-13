@@ -31,9 +31,9 @@ local event = require('coevent');
 -- https://github.com/mah0x211/lua-signal
 local signal = require('signal');
 -- block SIGINT
-signal.block( signal.INT );
+signal.block( signal.SIGINT );
 
-local function callback( ctx, watcher, hup )
+local function callback( ctx, evt )
     ctx.count = ctx.count + 1;
     print( 'yield' );
     -- throw an exception error
@@ -41,13 +41,13 @@ local function callback( ctx, watcher, hup )
     print( 'resume' );
     print( 'callback', ctx.count );
     if ctx.count > 2 then
-        watcher:unwatch();
+        evt:unwatch();
     end
 end
 
 -- exception handler
-local function exception( ctx, watcher, info )
-    print( 'got exception' );
+local function exception( ctx, sentry, info )
+    print( 'got exception', ctx, sentry, info );
     -- show debug info
     for k,v in pairs( info ) do
         print( k, v );
@@ -55,12 +55,12 @@ local function exception( ctx, watcher, info )
 end
 
 -- create loop: use default limit
-local loop = event.loop( nil, exception );
+local loop = assert( event.loop( nil, exception ) );
 -- create signal SIGINT watcher
-local watcher = event.signal( loop, signal.INT );
+local sentry = assert( event.sentry( loop, callback, { count = 0 } ) );
 local oneshot = true;
+assert( sentry:watchSignal( signal.SIGINT, oneshot ) );
 
-watcher:watch( oneshot, callback, { count = 0 } );
 print( 'type ^C' );
 print( 'done', loop:run() );
 

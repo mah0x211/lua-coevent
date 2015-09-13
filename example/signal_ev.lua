@@ -20,34 +20,39 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 
-  example/signal.lua
+  example/signal_ev.lua
   lua-coevent
 
   Created by Masatoshi Teruya on 14/05/13.
   
 --]]
 
-local event = require('coevent');
 -- https://github.com/mah0x211/lua-signal
 local signal = require('signal');
+local coevent = require('coevent').new();
 -- block SIGINT
 signal.block( signal.SIGINT );
 
-local function callback( ctx, watcher, hup )
+local function callback( ctx, ev, evtype, hup, handler )
     ctx.count = ctx.count + 1;
-    print( watcher:ident(), 'callback', ctx.count );
+    print( 'callback', ev, evtype, hup, handler, ctx.count );
     if ctx.count > 2 then
-        watcher:unwatch();
+        ev:unwatch();
     end
 end
 
--- create loop
-local loop = event.loop();
+-- create handler
+local h = assert( coevent:createHandler( nil, callback, { count = 0 } ) );
 -- create signal SIGINT watcher
-local watcher = event.signal( loop, signal.SIGINT );
 local oneshot = false;
+local ev = assert( h:signal( signal.SIGINT, oneshot ) );
 
-watcher:watch( oneshot, callback, { count = 0 } );
-print( 'type ^C' );
-print( 'done', loop:run() );
+print(
+    'calling callback function by handler <' ..
+    tostring(h) ..
+    '> via <' ..
+    tostring(ev) ..
+    '> when typed "^C"'
+);
+print( 'done', coevent:start() );
 

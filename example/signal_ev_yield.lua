@@ -33,24 +33,24 @@ local signal = require('signal');
 -- block SIGINT
 signal.block( signal.SIGINT );
 
-local function callback( ctx, watcher, hup )
+local function callback( ctx, evt )
     ctx.count = ctx.count + 1;
     print( 'yield' );
     coroutine.yield();
     print( 'resume' );
-    print( watcher:ident(), 'callback', ctx.count );
+    print( evt:ident(), 'callback', ctx.count );
     if ctx.count > 2 then
-        watcher:unwatch();
+        evt:unwatch();
     end
 end
 
 -- create loop
 local loop = event.loop();
 -- create signal SIGINT watcher
-local watcher = event.signal( loop, signal.SIGINT );
+local sentry = assert( event.sentry( loop, callback, { count = 0 } ) );
 local oneshot = false;
+assert( sentry:watchSignal( signal.SIGINT, oneshot ) );
 
-watcher:watch( oneshot, callback, { count = 0 } );
 print( 'type ^C' );
 print( 'done', loop:run() );
 
