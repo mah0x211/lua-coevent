@@ -10,12 +10,14 @@ description = {
     maintainer = "Masatoshi Teruya"
 }
 dependencies = {
-    "lua >= 5.1"
+    "lua >= 5.1",
+    "process >= 1.4.2",
+    "reco >= 1.2.1",
+    "sentry",
 }
 build = {
-    type = "command",
-    build_command = [[
-        autoreconf -ivf && CFLAGS="$(CFLAGS)" CPPFLAGS="-I$(LUA_INCDIR)" LIBFLAG="$(LIBFLAG)" OBJ_EXTENSION="$(OBJ_EXTENSION)" LIB_EXTENSION="$(LIB_EXTENSION)" LIBDIR="$(LIBDIR)" ./configure && make clean && make
-    ]],
-    install_command = "make install"
+    type = "builtin",
+    modules = {
+        coevent = "coevent.lua"
+    }
 }
