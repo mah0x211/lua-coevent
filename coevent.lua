@@ -36,7 +36,7 @@ local function defaultException( err, ev, evtype, hup, handler )
     
     -- close all event-watcher
     handler:close();
-    
+
     return true;
 end
 
@@ -194,12 +194,15 @@ local CoEvent = require('halo').class.CoEvent;
 
 
 --- createWather
+--- createHandler
+-- @param   exception
 -- @param   fn
+-- @param   ctx
 -- @param   ...
 -- @return  handler
 -- @return  err
-function CoEvent:createHandler( exception, fn, ... )
-    return CoEventHandler.new( protected( self ), exception, fn, ... );
+function CoEvent:createHandler( exception, fn, ctx, ... )
+    return CoEventHandler.new( protected( self ), exception, fn, ctx, ... );
 end
 
 
