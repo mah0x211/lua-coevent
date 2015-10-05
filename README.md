@@ -9,7 +9,6 @@ coroutine based kqueue/epoll module.
 
 ## Dependencies
 
-- process: https://github.com/mah0x211/lua-process
 - reco: https://github.com/mah0x211/lua-reco
 - sentry: https://github.com/mah0x211/lua-sentry
 
