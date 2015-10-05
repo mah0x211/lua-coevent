@@ -102,7 +102,11 @@ function CoEventHandler:invoke( ev, evtype, hup )
     
     -- got error
     if not ok then
-        own.exception( err, ev, evtype, hup, self );
+        ok, err = own.exception( err, ev, evtype, hup, self );
+        -- close handler
+        if not ok then
+            defaultException( err, ev, evtype, hup, self );
+        end
     end
 end
 
