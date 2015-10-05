@@ -231,6 +231,6 @@ local ev = assert( h:watchWritable( 1, true ) );
 
 ## Event Methods
 
-please refer the following document;  
+please refer to the following document;  
 https://github.com/mah0x211/lua-sentry#event-methods
 
