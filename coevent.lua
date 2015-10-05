@@ -26,9 +26,8 @@
   
 --]]
 
-local getpid = require('process').getpid;
 local reco = require('reco');
-local Sentry = require('sentry');
+local getSentry = require('sentry').default;
 
 -- private functions
 
@@ -39,21 +38,6 @@ local function defaultException( err, ev, evtype, hup, handler )
     handler:close();
     
     return true;
-end
-
-
--- acquire default sentry
-local function acquireSentry( ctx )
-    -- create new event-sentry
-    if ctx.pid ~= getpid() then
-        ctx.pid = getpid();
-        ctx.sentry, err = Sentry.default( true );
-        if err then
-            return ctx.sentry, err;
-        end
-    end
-    
-    return ctx.sentry;
 end
 
 
@@ -124,7 +108,8 @@ end
 
 
 local function register( event, coevt, handler, evs, val, ... )
-    local sentry, err = acquireSentry( coevt );
+    -- get default sentry
+    local sentry, err = getSentry();
     
     if not err then
         local ev;
@@ -239,7 +224,7 @@ function CoEvent:start()
     end
     
     -- get default sentry
-    sentry, err = acquireSentry( own );
+    sentry, err = getSentry();
     if err then
         return err;
     end
