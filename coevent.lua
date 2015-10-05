@@ -74,8 +74,10 @@ function CoEventHandler:init( coevt, exception, handler, ctx, ... )
     end
     
     own.coevt = coevt;
-    -- create event container
-    own.evs = {};
+    -- create weak table for event container
+    own.evs = setmetatable({},{
+        __mode = 'k'
+    });
     
     return self;
 end
@@ -85,8 +87,9 @@ end
 function CoEventHandler:close()
     local evs = protected( self ).evs;
     
-    for i = 1, #evs do
-        evs[i]:unwatch();
+    -- unwatch all registered events
+    for ev in pairs( evs ) do
+        ev:unwatch();
     end
 end
 
@@ -111,16 +114,26 @@ function CoEventHandler:invoke( ev, evtype, hup )
 end
 
 
-local function register( event, coevt, handler, evs, val, ... )
+--- register
+-- @param   handler
+-- @param   ctx     protected table of handler
+-- @param   event
+-- @param   val
+-- @param   ...
+-- @return  ev
+-- @return  err
+local function register( handler, ctx, event, val, ... )
     -- get default sentry
     local sentry, err = getSentry();
     
     if not err then
         local ev;
-        
+
+        -- create and register event
         ev, err = sentry[event]( sentry, val, handler, ... );
+        -- save event into event container
         if ev then
-            evs[#evs + 1] = ev;
+            ctx.evs[ev] = true;
             return ev;
         end
     end
@@ -129,53 +142,45 @@ local function register( event, coevt, handler, evs, val, ... )
 end
 
 
---- timer
--- @param   interval
+--- watchTimer
+-- @param   ival
 -- @param   oneshot
 -- @return  ev
 -- @return  err
-function CoEventHandler:timer( ival, oneshot )
-    local own = protected( self );
-    
-    return register( 'timer', own.coevt, self, own.evs, ival, oneshot );
+function CoEventHandler:watchTimer( ival, oneshot )
+    return register( self, protected( self ), 'timer', ival, oneshot );
 end
 
 
---- signal
+--- watchSignal
 -- @param   signo
 -- @param   oneshot
 -- @return  ev
 -- @return  err
-function CoEventHandler:signal( signo, oneshot )
-    local own = protected( self );
-    
-    return register( 'signal', own.coevt, self, own.evs, signo, oneshot );
+function CoEventHandler:watchSignal( signo, oneshot )
+    return register( self, protected( self ), 'signal', signo, oneshot );
 end
 
 
---- readable
+--- watchReadable
 -- @param   fd
 -- @param   oneshot
 -- @param   edge
 -- @return  ev
 -- @return  err
-function CoEventHandler:readable( fd, oneshot, edge )
-    local own = protected( self );
-    
-    return register( 'readable', own.coevt, self, own.evs, fd, oneshot, edge );
+function CoEventHandler:watchReadable( fd, oneshot, edge )
+    return register( self, protected( self ), 'readable', fd, oneshot, edge );
 end
 
 
---- writable
+--- watchWritable
 -- @param   fd
 -- @param   oneshot
 -- @param   edge
 -- @return  ev
 -- @return  err
-function CoEventHandler:writable( fd, oneshot, edge )
-    local own = protected( self );
-    
-    return register( 'writable', own.coevt, self, own.evs, fd, oneshot, edge );
+function CoEventHandler:watchWritable( fd, oneshot, edge )
+    return register( self, protected( self ), 'writable', fd, oneshot, edge );
 end
 
 
