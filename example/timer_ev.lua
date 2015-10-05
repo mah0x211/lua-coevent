@@ -44,7 +44,7 @@ end
 local h = assert( coevent:createHandler( nil, callback, { count = 0 } ) );
 -- create timer watcher
 local oneshot = false;
-local ev = assert( h:timer( 1, oneshot ) );
+local ev = assert( h:watchTimer( 1, oneshot ) );
 
 print(
     'calling callback function by handler <' ..

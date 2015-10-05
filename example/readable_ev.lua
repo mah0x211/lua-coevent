@@ -41,7 +41,7 @@ local h = assert( coevent:createHandler( nil, callback, { count = 0 } ) );
 -- create signal SIGINT watcher
 local oneshot = false;
 local edge = false;
-local ev = assert( h:readable( 0, oneshot, edge ) );
+local ev = assert( h:watchReadable( 0, oneshot, edge ) );
 
 
 print(

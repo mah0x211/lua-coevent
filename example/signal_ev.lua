@@ -45,7 +45,7 @@ end
 local h = assert( coevent:createHandler( nil, callback, { count = 0 } ) );
 -- create signal SIGINT watcher
 local oneshot = false;
-local ev = assert( h:signal( signal.SIGINT, oneshot ) );
+local ev = assert( h:watchSignal( signal.SIGINT, oneshot ) );
 
 print(
     'calling callback function by handler <' ..

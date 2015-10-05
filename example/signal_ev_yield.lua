@@ -20,37 +20,43 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 
-  example/signal_yield.lua
+  example/signal_ev_yield.lua
   lua-coevent
 
   Created by Masatoshi Teruya on 14/05/13.
   
 --]]
 
-local event = require('coevent');
 -- https://github.com/mah0x211/lua-signal
 local signal = require('signal');
+local coevent = require('coevent').new();
 -- block SIGINT
 signal.block( signal.SIGINT );
 
-local function callback( ctx, evt )
+local function callback( ctx, ev, evtype, hup, handler )
     ctx.count = ctx.count + 1;
+    print( 'callback', ctx, ev, evtype, hup, handler, ctx.count );
     print( 'yield' );
-    coroutine.yield();
+    print( coroutine.yield() );
     print( 'resume' );
-    print( evt:ident(), 'callback', ctx.count );
     if ctx.count > 2 then
-        evt:unwatch();
+        ev:unwatch();
     end
 end
 
 -- create loop
-local loop = event.loop();
+local h = assert( coevent:createHandler( nil, callback, { count = 0 } ) );
 -- create signal SIGINT watcher
-local sentry = assert( event.sentry( loop, callback, { count = 0 } ) );
 local oneshot = false;
-assert( sentry:watchSignal( signal.SIGINT, oneshot ) );
+local ev = assert( h:watchSignal( signal.SIGINT, oneshot ) );
 
+print(
+    'calling callback function by handler <' ..
+    tostring(h) ..
+    '> via <' ..
+    tostring(ev) ..
+    '> when typed "^C"'
+);
+print( 'done', coevent:start() );
 print( 'type ^C' );
-print( 'done', loop:run() );
 

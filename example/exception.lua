@@ -27,40 +27,48 @@
   
 --]]
 
-local event = require('coevent');
 -- https://github.com/mah0x211/lua-signal
 local signal = require('signal');
+local coevent = require('coevent').new();
 -- block SIGINT
 signal.block( signal.SIGINT );
 
-local function callback( ctx, evt )
+
+local function callback( ctx, ev, evtype, hup, handler )
+    local a;
+
     ctx.count = ctx.count + 1;
-    print( 'yield' );
+    print( 'callback', ev, evtype, hup, handler, ctx.count );
     -- throw an exception error
-    coroutine.yield();
-    print( 'resume' );
-    print( 'callback', ctx.count );
+    a = a + ctx;
+
     if ctx.count > 2 then
-        evt:unwatch();
+        ev:unwatch();
     end
 end
+
 
 -- exception handler
-local function exception( ctx, sentry, info )
-    print( 'got exception', ctx, sentry, info );
-    -- show debug info
-    for k,v in pairs( info ) do
-        print( k, v );
-    end
+local function exception( ctx, err, ev, evtype, hup, handler )
+    print( 'got exception', ctx, err, ev, evtype, hup, handler );
+    -- unwatch event
+    ev:unwatch();
 end
 
--- create loop: use default limit
-local loop = assert( event.loop( nil, exception ) );
--- create signal SIGINT watcher
-local sentry = assert( event.sentry( loop, callback, { count = 0 } ) );
-local oneshot = true;
-assert( sentry:watchSignal( signal.SIGINT, oneshot ) );
 
-print( 'type ^C' );
-print( 'done', loop:run() );
+-- create handler
+local h = assert( coevent:createHandler( exception, callback, { count = 0 } ) );
+-- create signal SIGINT watcher
+local oneshot = false;
+local ev = assert( h:watchSignal( signal.SIGINT, oneshot ) );
+
+
+print(
+    'calling callback function by handler <' ..
+    tostring(h) ..
+    '> via <' ..
+    tostring(ev) ..
+    '> when typed "^C"'
+);
+print( 'done', coevent:start() );
 
