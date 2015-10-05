@@ -188,12 +188,18 @@ end
 CoEventHandler = CoEventHandler.exports;
 
 
-
 -- MARK: class CoEvent
 local CoEvent = require('halo').class.CoEvent;
 
 
---- createWather
+-- static properties
+CoEvent.property {
+    EV_READABLE = require('sentry').EV_READABLE,
+    EV_WRITABLE = require('sentry').EV_WRITABLE,
+    EV_TIMER = require('sentry').EV_TIMER,
+    EV_SIGNAL = require('sentry').EV_SIGNAL
+};
+
 --- createHandler
 -- @param   exception
 -- @param   fn
