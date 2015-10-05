@@ -189,24 +189,6 @@ local CoEvent = require('halo').class.CoEvent;
 
 
 --- createWather
--- @param   exception handler
--- @param   ...
--- @return  self
--- @return  err
-function CoEvent:init( fn, ... )
-    local own = protected( self );
-    local err;
-    
-    own.exception, err = fn == nil and defaultException or reco.new( fn, ... );
-    if err then
-        return nil, err;
-    end
-    
-    return self;
-end
-
-
---- createWather
 -- @param   fn
 -- @param   ...
 -- @return  handler
