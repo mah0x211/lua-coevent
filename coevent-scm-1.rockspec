@@ -11,7 +11,6 @@ description = {
 }
 dependencies = {
     "lua >= 5.1",
-    "process >= 1.4.2",
     "reco >= 1.2.1",
     "sentry",
 }
