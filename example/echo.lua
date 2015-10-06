@@ -68,10 +68,10 @@ local function writefd( req, msg )
 end
 
 
-local function onEvent( req, ev, evtype, hup )
+local function onClientEvent( req, ev, evtype, hup )
     if hup then
         close( req.fd );
-    -- recv message
+    -- recv a message on readable event
     elseif evtype == EV_READABLE then
         local msg, err, again = recv( req.fd );
 
@@ -90,7 +90,7 @@ local function onEvent( req, ev, evtype, hup )
                 pushSendQ( req, msg );
             end
         end
-    -- consume sendq
+    -- consume a sendq on writable event
     elseif evtype == EV_WRITABLE then
         local sendq, head, tail = req.sendq, req.sendqHead, req.sendqTail;
         local len, err, again;
@@ -127,11 +127,6 @@ end
 local function onAccept( server, ev, evtype, hup )
     if hup then
         close( server.fd );
-    -- signal
-    elseif evtype == EV_SIGNAL then
-        -- stop event loop
-        server.co:stop();
-    -- readable
     else
         local fd = assert( accept( server.fd ) );
         local c = {
@@ -142,17 +137,23 @@ local function onAccept( server, ev, evtype, hup )
         };
 
         -- create client fd handler
-        c.handler = assert( server.co:createHandler( nil, onEvent, c ) );
+        c.handler = assert( server.co:createHandler( nil, onClientEvent, c ) );
         -- watch readable event
         assert( c.handler:watchReadable( fd ) );
     end
 end
 
 
+local function onSignal( server )
+    -- stop event loop
+    server.co:stop();
+end
+
+
 local function createServer()
     -- create loop
     local co = CoEvent.new();
-    local h, fd, err;
+    local sigh, h, fd, err;
     
     -- create bind socket
     fd = assert( bind( HOST, PORT, SOCK_STREAM, NONBLOCK, true ) );
@@ -171,8 +172,12 @@ local function createServer()
 
     -- block SIGINT
     signal.block( signal.SIGINT );
+    -- create signal handler
+    sigh = assert( co:createHandler( nil, onSignal, {
+        co = co
+    }));
     -- watch SIGINT
-    assert( h:watchSignal( signal.SIGINT ) );
+    assert( sigh:watchSignal( signal.SIGINT ) );
 
     -- run
     print( 'start server: ', HOST, PORT );
