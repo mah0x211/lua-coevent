@@ -194,6 +194,62 @@ CoEvent.property {
     EV_SIGNAL = require('sentry').EV_SIGNAL
 };
 
+
+function CoEvent:init()
+    local own = protected( self );
+    local evwait, evconsume, err;
+
+    -- get default sentry
+    own.sentry, err = getSentry();
+    if err then
+        return nil, err;
+    end
+
+    -- wait events
+    evwait = function()
+        local nevt, err;
+
+        repeat
+            -- wait events forever
+            nevt, err = own.sentry:wait();
+            -- got critical error
+            if err then
+                return nil, nil, nil, nil, err;
+            -- consuming events
+            elseif nevt > 0 then
+                -- switch event getter
+                self.getevent = evconsume;
+                return evconsume();
+            end
+        until #own.sentry == 0;
+    end;
+
+    -- consume events
+    evconsume = function()
+        -- get the occurred event sequentially
+        ev, evtype, hup, handler = own.sentry:getevent();
+        if ev then
+            return handler, ev, evtype, hup;
+        end
+
+        -- switch event getter
+        self.getevent = evwait;
+        return evwait();
+    end;
+
+    --- getevent
+    -- @return  CoEventHandler
+    -- @return  ev
+    -- @return  evtype
+    -- @return  ishup
+    -- @return  err
+    -- set evwait to default event getter
+    self.getevent = evwait;
+
+    return self;
+end
+
+
 --- createHandler
 -- @param   handlerCb
 -- @param   ctx
