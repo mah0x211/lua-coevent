@@ -261,56 +261,6 @@ function CoEvent:createHandler( handlerCb, ctx, exceptionCb )
 end
 
 
---- start
--- @return  err
-function CoEvent:start()
-    local own = protected( self );
-    local sentry, err, nevt, ev, evtype, hup, handler;
-    
-    -- running already
-    if own.running then
-        return nil;
-    end
-    
-    -- get default sentry
-    sentry, err = getSentry();
-    if err then
-        return err;
-    end
-    
-    -- run
-    own.running = true;
-    repeat
-        -- wait events forever
-        nevt, err = sentry:wait();
-        
-        -- got critical error
-        if err then
-            return err;
-        -- consuming events
-        elseif nevt > 0 then
-            -- get the occurred event sequentially
-            ev, evtype, hup, handler = sentry:getevent();
-            
-            while ev do
-                -- invoke handler
-                handler:invoke( ev, evtype, hup );
-                -- get next occurred event
-                ev, evtype, hup, handler = sentry:getevent();
-            end
-        end
-    until not own.running or #sentry == 0;
-    own.running = nil;
-    
-    return err;
-end
-
-
---- stop
-function CoEvent:stop()
-    protected( self ).running = nil;
-end
-
 
 -- exports
 return CoEvent.exports;
