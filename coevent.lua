@@ -31,8 +31,8 @@ local getSentry = require('sentry').default;
 
 -- private functions
 
-local function defaultException( err, ev, evtype, hup, handler )
-    print( 'CoEvent Exception: ', err, ev, evtype, hup, handler );
+local function defaultException( handler, err )
+    print( 'CoEvent Exception: ', handler, err );
     
     -- close all event-watcher
     handler:close();
@@ -46,12 +46,12 @@ local CoEventHandler = require('halo').class.CoEventHandler;
 
 
 --- init
--- @param   coevent     instance of CoEvent
--- @param   exception   function
 -- @param   handler     function
+-- @param   ctx         any
+-- @param   exception   function
 -- @return  instance
 -- @return  err
-function CoEventHandler:init( coevt, exception, handler, ctx, ... )
+function CoEventHandler:init( handler, ctx, exception )
     local own = protected( self );
     local err;
     
@@ -67,13 +67,12 @@ function CoEventHandler:init( coevt, exception, handler, ctx, ... )
     end
     
     -- create handler coroutine
-    own.handler, err = reco.new( handler, ctx, ... );
+    own.handler, err = reco.new( handler, ctx );
     -- got error
     if err then
         return nil, err;
     end
     
-    own.coevt = coevt;
     -- create weak table for event container
     own.evs = setmetatable({},{
         __mode = 'k'
@@ -85,30 +84,25 @@ end
 
 --- close
 function CoEventHandler:close()
-    local evs = protected( self ).evs;
-    
     -- unwatch all registered events
-    for ev in pairs( evs ) do
+    for ev in pairs( protected( self ).evs ) do
         ev:unwatch();
     end
 end
 
 
 --- invoke
--- @param   interval
--- @param   oneshot
--- @return  ev
--- @return  err
-function CoEventHandler:invoke( ev, evtype, hup )
+-- @param   ...
+function CoEventHandler:invoke( ... )
     local own = protected( self );
-    local ok, err = own.handler( ev, evtype, hup, self );
+    local ok, err = own.handler( ... );
     
     -- got error
     if not ok then
-        ok, err = own.exception( err, ev, evtype, hup, self );
+        ok, err = own.exception( self, err, ... );
         -- close handler
         if not ok then
-            defaultException( err, ev, evtype, hup, self );
+            defaultException( self, err, ... );
         end
     end
 end
@@ -201,14 +195,13 @@ CoEvent.property {
 };
 
 --- createHandler
--- @param   exception
--- @param   fn
+-- @param   handlerCb
 -- @param   ctx
--- @param   ...
--- @return  handler
+-- @param   exceptionCb
+-- @return  CoEventHandler
 -- @return  err
-function CoEvent:createHandler( exception, fn, ctx, ... )
-    return CoEventHandler.new( protected( self ), exception, fn, ctx, ... );
+function CoEvent:createHandler( handlerCb, ctx, exceptionCb )
+    return CoEventHandler.new( handlerCb, ctx, exceptionCb );
 end
 
 
