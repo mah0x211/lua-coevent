@@ -137,7 +137,7 @@ local function onAccept( server, ev, evtype, hup )
         };
 
         -- create client fd handler
-        c.handler = assert( server.co:createHandler( nil, onClientEvent, c ) );
+        c.handler = assert( server.co:createHandler( onClientEvent, c ) );
         -- watch readable event
         assert( c.handler:watchReadable( fd ) );
     end
@@ -146,42 +146,52 @@ end
 
 local function onSignal( server )
     -- stop event loop
-    server.co:stop();
+    server.running = nil;
 end
 
 
 local function createServer()
     -- create loop
-    local co = CoEvent.new();
+    local server = {
+        running = true
+    };
     local sigh, h, fd, err;
-    
+
+    -- create coevent
+    server.co = assert( CoEvent.new() );
     -- create bind socket
-    fd = assert( bind( HOST, PORT, SOCK_STREAM, NONBLOCK, true ) );
-    err = listen( fd );
+    server.fd = assert( bind( HOST, PORT, SOCK_STREAM, NONBLOCK, true ) );
+    err = listen( server.fd );
     if err then
         error( err );
     end
 
     -- create server fd handler
-    h = assert( co:createHandler( nil, onAccept, {
-        fd = fd,
-        co = co
-    }));
+    h = assert( server.co:createHandler( onAccept, server ) );
     -- watch readable event
-    assert( h:watchReadable( fd ) );
+    assert( h:watchReadable( server.fd ) );
 
     -- block SIGINT
     signal.block( signal.SIGINT );
     -- create signal handler
-    sigh = assert( co:createHandler( nil, onSignal, {
-        co = co
-    }));
+    sigh = assert( server.co:createHandler( onSignal, server ) );
     -- watch SIGINT
     assert( sigh:watchSignal( signal.SIGINT ) );
 
     -- run
     print( 'start server: ', HOST, PORT );
-    print( 'done', co:start() );
+    repeat
+        local handler, ev, evtype, ishup, err = server.co:getevent();
+
+        if err then
+            print( err );
+            break;
+        elseif handler then
+            handler:invoke( ev, evtype, ishup );
+        else
+            break;
+        end
+    until not server.running;
     print( 'end server' );
 end
 

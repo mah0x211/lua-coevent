@@ -29,9 +29,9 @@
 
 local coevent = require('coevent').new();
  
-local function callback( ctx, ev, evtype, hup, handler )
+local function callback( ctx, ev, evtype, hup )
     ctx.count = ctx.count + 1;
-    print( 'callback', ev, evtype, hup, handler, ctx.count );
+    print( 'callback', ev, evtype, hup, ctx.count );
     if ctx.count == 1 then
         print( 'unwatch', ev:unwatch() );
         print( 'watch', assert( ev:watch() ) );
@@ -41,7 +41,7 @@ local function callback( ctx, ev, evtype, hup, handler )
 end
 
 -- creat handler
-local h = assert( coevent:createHandler( nil, callback, { count = 0 } ) );
+local h = assert( coevent:createHandler( callback, { count = 0 } ) );
 -- create timer watcher
 local oneshot = false;
 local ev = assert( h:watchTimer( 1, oneshot ) );
@@ -53,5 +53,17 @@ print(
     tostring(ev) ..
     '> on every 1 sec'
 );
-print( 'done', coevent:start() );
+
+repeat
+    local handler, ev, evtype, ishup, err = coevent:getevent();
+
+    if err then
+        print( err );
+        break;
+    elseif handler then
+        handler:invoke( ev, evtype, ishup );
+    end
+until not handler;
+
+print( 'done' );
 

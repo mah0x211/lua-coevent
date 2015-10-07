@@ -33,16 +33,16 @@ local coevent = require('coevent').new();
 -- block SIGINT
 signal.block( signal.SIGINT );
 
-local function callback( ctx, ev, evtype, hup, handler )
+local function callback( ctx, ev, evtype, hup )
     ctx.count = ctx.count + 1;
-    print( 'callback', ev, evtype, hup, handler, ctx.count );
+    print( 'callback', ev, evtype, hup, ctx.count );
     if ctx.count > 2 then
         ev:unwatch();
     end
 end
 
 -- create handler
-local h = assert( coevent:createHandler( nil, callback, { count = 0 } ) );
+local h = assert( coevent:createHandler( callback, { count = 0 } ) );
 -- create signal SIGINT watcher
 local oneshot = false;
 local ev = assert( h:watchSignal( signal.SIGINT, oneshot ) );
@@ -54,5 +54,17 @@ print(
     tostring(ev) ..
     '> when typed "^C"'
 );
-print( 'done', coevent:start() );
+
+repeat
+    local handler, ev, evtype, ishup, err = coevent:getevent();
+
+    if err then
+        print( err );
+        break;
+    elseif handler then
+        handler:invoke( ev, evtype, ishup );
+    end
+until not handler;
+
+print( 'done' );
 

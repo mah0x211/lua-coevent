@@ -20,14 +20,13 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 
-  example/echo_delay.lua
+  example/echo.lua
   lua-coevent
 
   Created by Masatoshi Teruya on 15/10/06.
   
 --]]
 local yield = coroutine.yield;
-local CoEvent = require('coevent');
 local signal = require('signal');
 local bind = require('llsocket').inet.bind;
 local close = require('llsocket').close;
@@ -35,6 +34,7 @@ local listen = require('llsocket').listen;
 local accept = require('llsocket').accept;
 local recv = require('llsocket').recv;
 local send = require('llsocket').send;
+local CoEvent = require('coevent');
 -- constants
 local SOCK_STREAM = require('llsocket').SOCK_STREAM;
 local EV_READABLE = CoEvent.EV_READABLE;
@@ -68,10 +68,10 @@ local function writefd( req, msg )
 end
 
 
-local function onEvent( req, ev, evtype, hup )
+local function onClientEvent( req, ev, evtype, hup )
     if hup then
         close( req.fd );
-    -- recv message
+    -- recv a message on readable event
     elseif evtype == EV_READABLE then
         local msg, err, again = recv( req.fd );
 
@@ -98,7 +98,7 @@ local function onEvent( req, ev, evtype, hup )
                 pushSendQ( req, msg );
             end
         end
-    -- consume sendq
+    -- consume a sendq on writable event
     elseif evtype == EV_WRITABLE then
         local sendq, head, tail = req.sendq, req.sendqHead, req.sendqTail;
         local len, err, again;
@@ -135,11 +135,6 @@ end
 local function onAccept( server, ev, evtype, hup )
     if hup then
         close( server.fd );
-    -- signal
-    elseif evtype == EV_SIGNAL then
-        -- stop event loop
-        server.co:stop();
-    -- readable
     else
         local fd = assert( accept( server.fd ) );
         local c = {
@@ -150,41 +145,61 @@ local function onAccept( server, ev, evtype, hup )
         };
 
         -- create client fd handler
-        c.handler = assert( server.co:createHandler( nil, onEvent, c ) );
+        c.handler = assert( server.co:createHandler( onClientEvent, c ) );
         -- watch readable event
         assert( c.handler:watchReadable( fd ) );
     end
 end
 
 
+local function onSignal( server )
+    -- stop event loop
+    server.running = nil;
+end
+
+
 local function createServer()
     -- create loop
-    local co = CoEvent.new();
-    local h, fd, err;
-    
+    local server = {
+        running = true
+    };
+    local sigh, h, fd, err;
+
+    -- create coevent
+    server.co = assert( CoEvent.new() );
     -- create bind socket
-    fd = assert( bind( HOST, PORT, SOCK_STREAM, NONBLOCK, true ) );
-    err = listen( fd );
+    server.fd = assert( bind( HOST, PORT, SOCK_STREAM, NONBLOCK, true ) );
+    err = listen( server.fd );
     if err then
         error( err );
     end
 
     -- create server fd handler
-    h = assert( co:createHandler( nil, onAccept, {
-        fd = fd,
-        co = co
-    }));
+    h = assert( server.co:createHandler( onAccept, server ) );
     -- watch readable event
-    assert( h:watchReadable( fd ) );
+    assert( h:watchReadable( server.fd ) );
 
     -- block SIGINT
     signal.block( signal.SIGINT );
+    -- create signal handler
+    sigh = assert( server.co:createHandler( onSignal, server ) );
     -- watch SIGINT
-    assert( h:watchSignal( signal.SIGINT ) );
+    assert( sigh:watchSignal( signal.SIGINT ) );
 
     -- run
     print( 'start server: ', HOST, PORT );
-    print( 'done', co:start() );
+    repeat
+        local handler, ev, evtype, ishup, err = server.co:getevent();
+
+        if err then
+            print( err );
+            break;
+        elseif handler then
+            handler:invoke( ev, evtype, ishup );
+        else
+            break;
+        end
+    until not server.running;
     print( 'end server' );
 end
 
