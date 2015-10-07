@@ -153,6 +153,16 @@ until not handler;
 
 ## CoEventHandler Methods
 
+### h:invoke( ... )
+
+invoke an event handler, and, invoke an exception handler if failed to event handler invocation.
+
+
+**Parameters**
+
+- `...`: any arguments.
+
+
 ### h:close()
 
 close all events of handler.
