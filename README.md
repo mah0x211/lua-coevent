@@ -99,6 +99,23 @@ end
 
 -- create handler
 local h = assert( co:createHandler( callback, { count = 0 }, exception ) );
+-- register timer event
+assert( h:watchTimer( 1, true ) );
+
+local handler, ev, evtype, ishup, err;
+
+repeat
+    handler, ev, evtype, ishup, err = co:getevent();
+    if err then
+        print( err );
+        break;
+    elseif handler then
+        handler:invoke( ev, evtype, ishup );
+    end
+until not handler;
+
+print('done');
+
 ```
 
 
@@ -242,3 +259,4 @@ local ev = assert( h:watchWritable( 1, true ) );
 
 please refer to the following document;  
 https://github.com/mah0x211/lua-sentry#event-methods
+
