@@ -38,7 +38,7 @@ end
 
 -- create handler
 local h = assert( coevent:createHandler( callback, { count = 0 } ) );
--- create signal SIGINT watcher
+-- create writable watcher
 local oneshot = false;
 local edge = false;
 local ev = assert( h:watchWritable( 1, oneshot, edge ) );

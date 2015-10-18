@@ -48,21 +48,9 @@ local function callback( ctx, ev, evtype, hup, handler )
 end
 
 
--- exception handler
-local function exception( ctx, err, ev, evtype, hup, handler )
-    local a;
-
-    print( 'got exception', ctx, err, ev, evtype, hup, handler );
-    -- throw an exception error
-    a = a + ctx;
-
-    -- unwatch event
-    ev:unwatch();
-end
-
 
 -- create handler
-local h = assert( coevent:createHandler( exception, callback, { count = 0 } ) );
+local h = assert( coevent:createHandler( callback, { count = 0 } ) );
 -- create signal SIGINT watcher
 local oneshot = false;
 local ev = assert( h:watchSignal( signal.SIGINT, oneshot ) );
@@ -75,5 +63,16 @@ print(
     tostring(ev) ..
     '> when typed "^C"'
 );
-print( 'done', coevent:start() );
 
+repeat
+    local handler, ev, evtype, ishup, err = coevent:getevent();
+
+    if err then
+        print( err );
+        break;
+    elseif handler then
+        handler:invoke( ev, evtype, ishup );
+    end
+until not handler;
+
+print( 'done' );

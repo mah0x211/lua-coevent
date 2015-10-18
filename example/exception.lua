@@ -49,15 +49,16 @@ end
 
 
 -- exception handler
-local function exception( ctx, err, ev, evtype, hup, handler )
-    print( 'got exception', ctx, err, ev, evtype, hup, handler );
+local function exception( ctx, handler, err, ev, evtype, hup )
+    print( 'got exception', ctx, handler, err, ev, evtype, hup );
     -- unwatch event
+    print( ev );
     ev:unwatch();
 end
 
 
 -- create handler
-local h = assert( coevent:createHandler( exception, callback, { count = 0 } ) );
+local h = assert( coevent:createHandler( callback, { count = 0 }, exception ) );
 -- create signal SIGINT watcher
 local oneshot = false;
 local ev = assert( h:watchSignal( signal.SIGINT, oneshot ) );
@@ -70,5 +71,16 @@ print(
     tostring(ev) ..
     '> when typed "^C"'
 );
-print( 'done', coevent:start() );
 
+repeat
+    local handler, ev, evtype, ishup, err = coevent:getevent();
+
+    if err then
+        print( err );
+        break;
+    elseif handler then
+        handler:invoke( ev, evtype, ishup );
+    end
+until not handler;
+
+print( 'done' );
