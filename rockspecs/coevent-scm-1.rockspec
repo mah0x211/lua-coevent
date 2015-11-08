@@ -11,7 +11,7 @@ description = {
 }
 dependencies = {
     "lua >= 5.1",
-    "reco >= 1.2.1",
+    "reco >= 1.3.0",
     "sentry >= 0.1.0",
 }
 build = {

@@ -31,7 +31,7 @@ local getSentry = require('sentry').default;
 
 -- private functions
 
-local function defaultException( handler, err )
+local function defaultException( _, handler, err )
     print( 'CoEvent Exception: ', handler, err );
     
     -- close all event-watcher
@@ -60,14 +60,14 @@ function CoEventHandler:init( handler, ctx, exception )
         own.exception = defaultException;
     -- create exception coroutine
     else
-        own.exception, err = reco.new( exception, ctx );
+        own.exception, err = reco.new( exception );
         if err then
             return nil, err;
         end
     end
     
     -- create handler coroutine
-    own.handler, err = reco.new( handler, ctx );
+    own.handler, err = reco.new( handler );
     -- got error
     if err then
         return nil, err;
@@ -77,17 +77,22 @@ function CoEventHandler:init( handler, ctx, exception )
     own.evs = setmetatable({},{
         __mode = 'k'
     });
-    
+    own.ctx = ctx;
+
     return self;
 end
 
 
 --- close
 function CoEventHandler:close()
+    local own = protected( self );
+
     -- unwatch all registered events
-    for ev in pairs( protected( self ).evs ) do
+    for ev in pairs( own.evs ) do
         ev:unwatch();
     end
+    -- release references
+    own.ctx, own.handler, own.exception, own.evs = nil, nil, nil, nil;
 end
 
 
@@ -95,14 +100,14 @@ end
 -- @param   ...
 function CoEventHandler:invoke( ... )
     local own = protected( self );
-    local ok, err = own.handler( ... );
+    local ok, err = own.handler( own.ctx, ... );
     
     -- got error
     if not ok then
-        ok, err = own.exception( self, err, ... );
+        ok, err = own.exception( own.ctx, self, err, ... );
         -- close handler
         if not ok then
-            defaultException( self, err, ... );
+            defaultException( own.ctx, self, err, ... );
         end
     end
 end
