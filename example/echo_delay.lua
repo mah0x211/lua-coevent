@@ -62,7 +62,7 @@ local function writefd( req, msg )
     elseif err then
         close( req.fd );
     -- close by peer
-    elseif len == 0 then
+    elseif not len then
         close( req.fd );
     end
 end
@@ -112,7 +112,7 @@ local function onClientEvent( req, ev, evtype, hup )
                 close( req.fd );
                 return;
             -- close by peer
-            elseif len == 0 then
+            elseif not len then
                 close( req.fd );
                 return;
             end
