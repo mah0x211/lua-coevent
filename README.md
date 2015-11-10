@@ -53,6 +53,20 @@ local coevent = require('coevent');
 local co = coevent.new();
 ```
 
+### coevent.default
+
+a default `CoEvent` object.  
+if you accessing this property for the first time, there will be created a `CoEvent` object on internally.
+
+
+**Example**
+
+```lua
+local coevent = require('coevent');
+local co = coevent.default;
+```
+
+
 ---
 
 
