@@ -25,9 +25,11 @@
   Created by Masatoshi Teruya on 15/09/05.
   
 --]]
-
+-- modules
 local reco = require('reco');
 local getSentry = require('sentry').default;
+-- constants
+local COEVENT_DEFAULT;
 
 -- private functions
 
@@ -199,6 +201,18 @@ CoEvent.property {
     EV_SIGNAL = require('sentry').EV_SIGNAL
 };
 
+
+-- static metamethods
+
+function CoEvent.__index( self, key )
+    if key == 'default' then
+        self.default = assert( CoEvent.new() );
+        return self.default;
+    end
+end
+
+
+-- instance methods
 
 function CoEvent:init()
     local own = protected( self );
