@@ -26,7 +26,7 @@
   
 --]]
 
-local coevent = require('coevent').new();
+local coevent = assert( require('coevent').default );
 
 local function callback( ctx, ev, evtype, hup )
     ctx.count = ctx.count + 1;

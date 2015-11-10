@@ -158,7 +158,7 @@ local function createServer()
     local sigh, h, fd, err;
 
     -- create coevent
-    server.co = assert( CoEvent.new() );
+    server.co = assert( CoEvent.default );
     -- create bind socket
     server.fd = assert( bind( HOST, PORT, SOCK_STREAM, NONBLOCK, true ) );
     err = listen( server.fd );

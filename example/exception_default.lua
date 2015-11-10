@@ -29,7 +29,7 @@
 
 -- https://github.com/mah0x211/lua-signal
 local signal = require('signal');
-local coevent = require('coevent').new();
+local coevent = assert( require('coevent').default );
 -- block SIGINT
 signal.block( signal.SIGINT );
 
