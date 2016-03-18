@@ -1,17 +1,17 @@
 --[[
-  
+
   Copyright (C) 2015 Masatoshi Teruya
- 
+
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
   in the Software without restriction, including without limitation the rights
   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
   copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
- 
+
   The above copyright notice and this permission notice shall be included in
   all copies or substantial portions of the Software.
- 
+
   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
@@ -19,137 +19,60 @@
   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
-  
+
   coevent.lua
   lua-coevent
   Created by Masatoshi Teruya on 15/09/05.
-  
+
 --]]
--- modules
+
+-- assign to local
+local inspect = require('util').inspect;
+local sentry = require('sentry');
 local reco = require('reco');
-local getSentry = require('sentry').default;
+local recoNew = reco.new;
+local pcall = pcall;
+local pairs = pairs;
+local unpack = unpack or table.unpack;
+local setmetatable = setmetatable;
+local RunQ = require('coevent.runq');
 -- constants
-local COEVENT_DEFAULT;
-
--- private functions
-
-local function defaultException( _, handler, err )
-    print( 'CoEvent Exception: ', handler, err );
-    
-    -- close all event-watcher
-    handler:close();
-
-    return true;
-end
+-- coroutine status
+local OK = reco.OK;
+-- variables
+local EvLoop = assert( sentry.default() );
+local ActiveCo;
 
 
--- MARK: class CoEventHandler
-local CoEventHandler = require('halo').class.CoEventHandler;
-
-
---- init
--- @param   handler     function
--- @param   ctx         any
--- @param   exception   function
--- @return  instance
+--- watch
+-- @param   co
+-- @param   asa
+-- @param   val
+-- @param   ctx
+-- @param   oneshot
+-- @param   edge
+-- @return  ev
 -- @return  err
-function CoEventHandler:init( handler, ctx, exception )
-    local own = protected( self );
-    local err;
-    
-    -- use default exception handler
-    if exception == nil then
-        own.exception = defaultException;
-    -- create exception coroutine
-    else
-        own.exception, err = reco.new( exception );
-        if err then
-            return nil, err;
+local function watch( co, asa, val, ctx, oneshot, edge )
+    if co then
+        local ev, err = EvLoop:newevent();
+
+        if not err then
+            err = ev[asa]( ev, val, ctx, oneshot, edge );
+            if not err then
+                co.nevent = co.nevent + 1;
+                co.events[ev] = true;
+                -- remove from RunQ
+                RunQ.remove( co );
+
+                return ev;
+            end
         end
-    end
-    
-    -- create handler coroutine
-    own.handler, err = reco.new( handler );
-    -- got error
-    if err then
+
         return nil, err;
     end
-    
-    -- create weak table for event container
-    own.evs = setmetatable({},{
-        __mode = 'k'
-    });
-    own.ctx = ctx;
 
-    return self;
-end
-
-
---- close
-function CoEventHandler:close()
-    local own = protected( self );
-
-    -- unwatch all registered events
-    for ev in pairs( own.evs ) do
-        ev:unwatch();
-    end
-    -- release references
-    own.ctx, own.handler, own.exception, own.evs = nil, nil, nil, nil;
-end
-
-
---- invoke
--- @param   ...
-function CoEventHandler:invoke( ... )
-    local own = protected( self );
-    local ok, err = own.handler( own.ctx, ... );
-    
-    -- got error
-    if not ok then
-        ok, err = own.exception( own.ctx, self, err, ... );
-        -- close handler
-        if not ok then
-            defaultException( own.ctx, self, err, ... );
-        end
-    end
-end
-
-
---- register
--- @param   handler
--- @param   ctx     protected table of handler
--- @param   event
--- @param   val
--- @param   ...
--- @return  ev
--- @return  err
-local function register( handler, ctx, event, val, ... )
-    -- get default sentry
-    local sentry, err = getSentry();
-    
-    if not err then
-        local ev;
-
-        -- create and register event
-        ev, err = sentry[event]( sentry, val, handler, ... );
-        -- save event into event container
-        if ev then
-            ctx.evs[ev] = true;
-            return ev;
-        end
-    end
-    
-    return nil, err;
-end
-
-
---- watchTimer
--- @param   ival
--- @param   oneshot
--- @return  ev
--- @return  err
-function CoEventHandler:watchTimer( ival, oneshot )
-    return register( self, protected( self ), 'timer', ival, oneshot );
+    error( 'cannot watching an event at outside of runloop()', 2 );
 end
 
 
@@ -158,19 +81,18 @@ end
 -- @param   oneshot
 -- @return  ev
 -- @return  err
-function CoEventHandler:watchSignal( signo, oneshot )
-    return register( self, protected( self ), 'signal', signo, oneshot );
+local function watchSignal( signo, oneshot )
+    return watch( ActiveCo, 'assignal', signo, ActiveCo, oneshot );
 end
 
 
---- watchReadable
--- @param   fd
+--- watchTimer
+-- @param   ival
 -- @param   oneshot
--- @param   edge
 -- @return  ev
 -- @return  err
-function CoEventHandler:watchReadable( fd, oneshot, edge )
-    return register( self, protected( self ), 'readable', fd, oneshot, edge );
+local function watchTimer( ival, oneshot )
+    return watch( ActiveCo, 'astimer', ival, ActiveCo, oneshot );
 end
 
 
@@ -180,107 +102,205 @@ end
 -- @param   edge
 -- @return  ev
 -- @return  err
-function CoEventHandler:watchWritable( fd, oneshot, edge )
-    return register( self, protected( self ), 'writable', fd, oneshot, edge );
+local function watchWritable( fd, oneshot, edge )
+    return watch( ActiveCo, 'aswritable', fd, ActiveCo, oneshot, edge );
 end
 
 
--- exports
-CoEventHandler = CoEventHandler.exports;
+--- watchReadable
+-- @param   fd
+-- @param   oneshot
+-- @param   edge
+-- @return  ev
+-- @return  err
+local function watchReadable( fd, oneshot, edge )
+    return watch( ActiveCo, 'asreadable', fd, ActiveCo, oneshot, edge );
+end
 
 
--- MARK: class CoEvent
-local CoEvent = require('halo').class.CoEvent;
+--- dispose
+-- @param coroutine
+local function dispose( co )
+    local deferCo = co.deferCo;
 
+    -- unwatch all registered events
+    for ev in pairs( co.events ) do
+        ev:revert();
+    end
 
--- static properties
-CoEvent.property {
-    EV_READABLE = require('sentry').EV_READABLE,
-    EV_WRITABLE = require('sentry').EV_WRITABLE,
-    EV_TIMER = require('sentry').EV_TIMER,
-    EV_SIGNAL = require('sentry').EV_SIGNAL
-};
+    -- set nil to release references
+    co.events = nil;
+    -- remove coroutine from RunQ
+    RunQ.remove( co );
 
+    -- run deferCo function
+    if co.deferCo then
+        local ok, err = pcall( unpack( co.deferCo ) );
 
--- static metamethods
-
-function CoEvent.__index( self, key )
-    if key == 'default' then
-        self.default = assert( CoEvent.new() );
-        return self.default;
+        if not ok then
+            error( err );
+        end
     end
 end
 
 
--- instance methods
+--- defaultErrorFn
+-- @param ...
+local function defaultErrorFn( ... )
+    print( 'defaultErrorFn', ... );
+end
 
-function CoEvent:init()
-    local own = protected( self );
-    local evwait, evconsume, err;
 
-    -- get default sentry
-    own.sentry, err = getSentry();
-    if err then
-        return nil, err;
+--- invoke
+-- @param co
+-- @param ...
+local function invoke( co, ... )
+    local rv;
+
+    ActiveCo = co;
+    -- invoke coroutine with context
+    if co.status == OK then
+        rv = { co( co.ctx, ... ) };
+    -- invoke coroutine without context
+    else
+        rv = { co( ... ) };
     end
+    ActiveCo = nil;
 
-    -- wait events
-    evwait = function()
-        local nevt, err;
+    -- success
+    if rv[1] then
+        -- dispose coroutine if finished
+        if co.status == OK then
+            dispose( co );
+        end
+    -- got error
+    else
+        local errerr;
 
-        repeat
-            -- wait events forever
-            nevt, err = own.sentry:wait();
-            -- got critical error
-            if err then
-                return nil, nil, nil, nil, err;
-            -- consuming events
-            elseif nevt > 0 then
-                -- switch event getter
-                self.getevent = evconsume;
-                return evconsume();
-            end
-        until #own.sentry == 0;
-    end;
+        -- invoke error function
+        ok, errerr = pcall( co.errfn, co.ctx, rv[2], rv[3], rv[4] );
 
-    -- consume events
-    evconsume = function()
-        -- get the occurred event sequentially
-        ev, evtype, hup, handler = own.sentry:getevent();
-        if ev then
-            return handler, ev, evtype, hup;
+        if not ok then
+            defaultErrorFn( errerr, rv[2], rv[3], rv[4] );
         end
 
-        -- switch event getter
-        self.getevent = evwait;
-        return evwait();
-    end;
-
-    --- getevent
-    -- @return  CoEventHandler
-    -- @return  ev
-    -- @return  evtype
-    -- @return  ishup
-    -- @return  err
-    -- set evwait to default event getter
-    self.getevent = evwait;
-
-    return self;
+        -- dispose coroutine
+        dispose( co );
+    end
 end
 
 
---- createHandler
--- @param   handlerCb
--- @param   ctx
--- @param   exceptionCb
--- @return  CoEventHandler
--- @return  err
-function CoEvent:createHandler( handlerCb, ctx, exceptionCb )
-    return CoEventHandler.new( handlerCb, ctx, exceptionCb );
+--- spawn
+-- @param fn
+-- @param ctx
+-- @param errfn
+-- @return err
+local function spawn( fn, ctx, errfn )
+    local co, err = recoNew( fn );
+
+    if not err then
+        -- append management fields
+        co.ctx = ctx;
+        co.errfn = errfn;
+        co.nevent = 0;
+        co.events = setmetatable({},{
+            __mode = 'k'
+        });
+        -- add to runq
+        RunQ.add( co );
+    end
+
+    return err;
 end
 
+
+--- defer
+-- @param fn
+local function deferCo( fn, ... )
+    if ActiveCo then
+        local args = {...};
+        local def = { fn };
+
+        -- filling a sparse arguments
+        for i = 1, select( '#', ... ) do
+            if args[i] == nil then
+                def[#def + 1] = '';
+            else
+                def[#def + 1] = args[i];
+            end
+        end
+        ActiveCo.deferCo = def;
+        return;
+    end
+
+    error( 'cannot register the defer function at outside of runloop()' );
+end
+
+
+--- runloop
+-- @param fn
+-- @param ctx
+-- @param errfn
+-- @return err
+local function runloop( fn, ctx, errfn )
+    local err = spawn( fn, ctx, errfn );
+    local nrunq, nevt, ev, evtype, ishup, co, disabled;
+
+    if not err then
+        -- have events
+        repeat
+            -- invoke runq
+            nrunq = RunQ.invoke( invoke );
+
+            -- wait events forever
+            nevt, err = EvLoop:wait( nrunq == 0 and -1 or 0.5 );
+
+            -- got critical error
+            if err then
+                break;
+            -- consuming events
+            elseif nevt > 0 then
+                ev, evtype, ishup, co, disabled = EvLoop:getevent();
+                while ev do
+                    -- remove disabled event object
+                    if disabled then
+                        co.events[ev] = nil;
+                        co.nevent = co.nevent - 1;
+                        ev:revert();
+                        -- add to RunQ
+                        if co.nevent then
+                            RunQ.add( co );
+                        end
+                    end
+                    invoke( co, ev, evtype, ishup );
+                    -- get next event
+                    ev, evtype, ishup, co = EvLoop:getevent();
+                end
+            end
+
+            -- re-invoke runq
+            RunQ.invoke( invoke );
+        until #EvLoop == 0;
+    end
+
+    return err;
+end
 
 
 -- exports
-return CoEvent.exports;
+return {
+    -- evtypes
+    EV_READABLE = sentry.EV_READABLE,
+    EV_WRITABLE = sentry.EV_WRITABLE,
+    EV_TIMER    = sentry.EV_TIMER,
+    EV_SIGNAL   = sentry.EV_SIGNAL,
+    -- event functions
+    runloop         = runloop,
+    spawn           = spawn,
+    deferCo         = deferCo,
+    watchReadable   = watchReadable,
+    watchWritable   = watchWritable,
+    watchTimer      = watchTimer,
+    watchSignal     = watchSignal,
+};
 
