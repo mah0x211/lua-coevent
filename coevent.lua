@@ -30,7 +30,7 @@
 local inspect = require('util').inspect;
 local sentry = require('sentry');
 local reco = require('reco');
-local recoNew = reco.new;
+local newco = reco.new;
 local pcall = pcall;
 local pairs = pairs;
 local unpack = unpack or table.unpack;
@@ -196,16 +196,14 @@ end
 -- @param errfn
 -- @return err
 local function spawn( fn, ctx, errfn )
-    local co, err = recoNew( fn );
+    local co, err = newco( fn );
 
     if not err then
         -- append management fields
         co.ctx = ctx;
         co.errfn = errfn;
         co.nevent = 0;
-        co.events = setmetatable({},{
-            __mode = 'k'
-        });
+        co.events = {};
         -- add to runq
         RunQ.add( co );
     end
