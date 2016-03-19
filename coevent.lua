@@ -41,6 +41,7 @@ local RunQ = require('coevent.runq');
 local OK = reco.OK;
 -- variables
 local EvLoop = assert( sentry.default() );
+local RQ;
 local ActiveCo;
 
 
@@ -63,7 +64,7 @@ local function watch( co, asa, val, ctx, oneshot, edge )
                 co.nevent = co.nevent + 1;
                 co.events[ev] = true;
                 -- remove from RunQ
-                RunQ.remove( co );
+                RQ:remove( co );
 
                 return ev;
             end
@@ -131,7 +132,7 @@ local function dispose( co )
     -- set nil to release references
     co.events = nil;
     -- remove coroutine from RunQ
-    RunQ.remove( co );
+    RQ:remove( co );
 
     -- run deferCo function
     if co.deferCo then
@@ -172,6 +173,8 @@ local function invoke( co, ... )
         -- dispose coroutine if finished
         if co.status == OK then
             dispose( co );
+        elseif co.nevent == 0 then
+            RQ:add( co );
         end
     -- got error
     else
@@ -205,7 +208,7 @@ local function spawn( fn, ctx, errfn )
         co.nevent = 0;
         co.events = {};
         -- add to runq
-        RunQ.add( co );
+        RQ:add( co );
     end
 
     return err;
@@ -223,20 +226,40 @@ local function deferCo( fn, ... )
 end
 
 
+--- runQueue
+-- @return nrunq
+function runQueue()
+    local rq = RQ;
+
+    repeat
+        for co in pairs( rq:consume() ) do
+            invoke( co );
+        end
+    until #EvLoop > 0;
+
+    return rq.nqueue;
+end
+
+
 --- runloop
 -- @param fn
 -- @param ctx
 -- @param errfn
 -- @return err
 local function runloop( fn, ctx, errfn )
-    local err = spawn( fn, ctx, errfn );
-    local nrunq, nevt, ev, evtype, ishup, co, disabled;
+    local err;
 
+    -- create RunQ
+    RQ = RunQ.new();
+    -- create new coroutine
+    err = spawn( fn, ctx, errfn );
     if not err then
+        local nrunq, nevt, ev, evtype, ishup, co, disabled;
+
         -- have events
         repeat
             -- invoke runq
-            nrunq = RunQ.invoke( invoke );
+            nrunq = runQueue();
 
             -- wait events forever
             nevt, err = EvLoop:wait( nrunq == 0 and -1 or 0.5 );
@@ -253,10 +276,6 @@ local function runloop( fn, ctx, errfn )
                         co.events[ev] = nil;
                         co.nevent = co.nevent - 1;
                         ev:revert();
-                        -- add to RunQ
-                        if co.nevent == 0 then
-                            RunQ.add( co );
-                        end
                     end
                     invoke( co, ev, evtype, ishup );
                     -- get next event
@@ -265,7 +284,7 @@ local function runloop( fn, ctx, errfn )
             end
 
             -- re-invoke runq
-            RunQ.invoke( invoke );
+            runQueue();
         until #EvLoop == 0;
     end
 

@@ -27,83 +27,41 @@
 --]]
 
 -- assign to local
-local inspect = require('util').inspect;
-local sentry = require('sentry');
-local pairs = pairs;
 local setmetatable = setmetatable;
--- variables
-local EvLoop = assert( sentry.default() );
-local RunQNum = 0;
-local RunQ = {};
-local RunQChanges = {};
-local InInvoking = false;
 
---- init - initialize global variables
-local function init()
-    EvLoop = assert( sentry.default() );
-    RunQNum = 0;
-    RunQ = setmetatable({},{
-        __mode = 'k'
-    });
-    RunQChanges = {};
-end
+-- class
+local RunQ = {};
 
 
 --- add
 -- @param   co
-local function add( co )
-    if not RunQ[co] then
-        RunQNum = RunQNum + 1;
-        if InInvoking then
-            RunQChanges[#RunQChanges + 1] = { co, true };
-        else
-            RunQ[co] = true;
-        end
+function RunQ:add( co )
+    if not self.queue[co] then
+        self.nqueue = self.nqueue + 1;
+        self.queue[co] = true;
     end
 end
 
 
 --- remove
 -- @param   co
-local function remove( co )
-    if RunQ[co] then
-        RunQNum = RunQNum - 1;
-        if InInvoking then
-            RunQChanges[#RunQChanges + 1] = { co };
-        else
-            RunQ[co] = nil;
-        end
+function RunQ:remove( co )
+    if self.queue[co] then
+        self.nqueue = self.nqueue - 1;
+        self.queue[co] = nil;
     end
 end
 
 
---- invoke
--- @param invocator
--- @return runqnum
-local function invoke( invocator )
-    InInvoking = true;
+--- consume
+-- @return queue
+function RunQ:consume()
+    local queue = self.queue;
 
-    while RunQNum > 0 do
-        for co in pairs( RunQ ) do
-            invocator( co );
-        end
+    self.nqueue = 0;
+    self.queue = {};
 
-        -- update RunQ
-        if #RunQChanges > 0 then
-            for i = 1, #RunQChanges do
-                RunQ[RunQChanges[i][1]], RunQChanges[i] = RunQChanges[i][2], nil;
-            end
-        end
-
-        -- if event waiting
-        if #EvLoop > 0 then
-            break;
-        end
-    end
-
-    InInvoking = false;
-
-    return RunQNum;
+    return queue;
 end
 
 
@@ -113,11 +71,21 @@ local function assert_newindex()
 end
 
 
+-- create new RunQ
+local function new()
+    return setmetatable({
+        nqueue = 0,
+        queue = {}
+    },{
+        __newindex = assert_newindex,
+        __index = RunQ
+    });
+end
+
+
 --- exports
 return {
-    init    = init,
-    add     = add,
-    remove  = remove,
-    invoke  = invoke
+    new = new;
 };
+
 
