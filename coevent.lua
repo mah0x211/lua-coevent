@@ -268,7 +268,7 @@ local function runloop( fn, ctx, errfn )
                         co.nevent = co.nevent - 1;
                         ev:revert();
                         -- add to RunQ
-                        if co.nevent then
+                        if co.nevent == 0 then
                             RunQ.add( co );
                         end
                     end
