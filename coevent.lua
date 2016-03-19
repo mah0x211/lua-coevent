@@ -215,23 +215,11 @@ end
 --- defer
 -- @param fn
 local function deferCo( fn, ... )
-    if ActiveCo then
-        local args = {...};
-        local def = { fn };
-
-        -- filling a sparse arguments
-        for i = 1, select( '#', ... ) do
-            if args[i] == nil then
-                def[#def + 1] = '';
-            else
-                def[#def + 1] = args[i];
-            end
-        end
-        ActiveCo.deferCo = def;
-        return;
+    if not ActiveCo then
+        error( 'cannot register the defer function at outside of runloop()' );
     end
 
-    error( 'cannot register the defer function at outside of runloop()' );
+    ActiveCo.deferCo = { fn, ... };
 end
 
 
