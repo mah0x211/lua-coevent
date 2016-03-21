@@ -231,11 +231,15 @@ end
 function runQueue()
     local rq = RQ;
 
-    repeat
+    while rq.nqueue > 0 do
         for co in pairs( rq:consume() ) do
             invoke( co );
         end
-    until #EvLoop > 0;
+
+        if #EvLoop > 0 then
+            break;
+        end
+    end
 
     return rq.nqueue;
 end
