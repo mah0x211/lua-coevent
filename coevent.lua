@@ -178,13 +178,12 @@ local function invoke( co, ... )
         end
     -- got error
     else
-        local errerr;
-
         -- invoke error function
-        ok, errerr = pcall( co.errfn, co.ctx, rv[2], rv[3], rv[4] );
+        local ok, err = pcall( co.errfn, co.ctx, rv[2], rv[3], rv[4] );
 
+        -- invoke default error function
         if not ok then
-            defaultErrorFn( errerr, rv[2], rv[3], rv[4] );
+            defaultErrorFn( err, rv[2], rv[3], rv[4] );
         end
 
         -- dispose coroutine
@@ -204,7 +203,7 @@ local function spawn( fn, ctx, errfn )
     if not err then
         -- append management fields
         co.ctx = ctx;
-        co.errfn = errfn;
+        co.errfn = errfn or defaultErrorFn;
         co.nevent = 0;
         co.events = {};
         -- add to runq
