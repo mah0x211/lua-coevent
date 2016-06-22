@@ -45,7 +45,7 @@ local RQ;
 local ActiveCo;
 
 
---- watch
+--- on
 -- @param   co
 -- @param   asa
 -- @param   val
@@ -54,7 +54,7 @@ local ActiveCo;
 -- @param   edge
 -- @return  ev
 -- @return  err
-local function watch( co, asa, val, ctx, oneshot, edge )
+local function on( co, asa, val, ctx, oneshot, edge )
     if co then
         local ev, err = EvLoop:newevent();
 
@@ -77,44 +77,44 @@ local function watch( co, asa, val, ctx, oneshot, edge )
 end
 
 
---- watchSignal
+--- onSignal
 -- @param   signo
 -- @param   oneshot
 -- @return  ev
 -- @return  err
-local function watchSignal( signo, oneshot )
+local function onSignal( signo, oneshot )
     return watch( ActiveCo, 'assignal', signo, ActiveCo, oneshot );
 end
 
 
---- watchTimer
+--- onTimer
 -- @param   ival
 -- @param   oneshot
 -- @return  ev
 -- @return  err
-local function watchTimer( ival, oneshot )
+local function onTimer( ival, oneshot )
     return watch( ActiveCo, 'astimer', ival, ActiveCo, oneshot );
 end
 
 
---- watchWritable
+--- onWritable
 -- @param   fd
 -- @param   oneshot
 -- @param   edge
 -- @return  ev
 -- @return  err
-local function watchWritable( fd, oneshot, edge )
+local function onWritable( fd, oneshot, edge )
     return watch( ActiveCo, 'aswritable', fd, ActiveCo, oneshot, edge );
 end
 
 
---- watchReadable
+--- onReadable
 -- @param   fd
 -- @param   oneshot
 -- @param   edge
 -- @return  ev
 -- @return  err
-local function watchReadable( fd, oneshot, edge )
+local function onReadable( fd, oneshot, edge )
     return watch( ActiveCo, 'asreadable', fd, ActiveCo, oneshot, edge );
 end
 
@@ -306,9 +306,9 @@ return {
     runloop         = runloop,
     spawn           = spawn,
     deferCo         = deferCo,
-    watchReadable   = watchReadable,
-    watchWritable   = watchWritable,
-    watchTimer      = watchTimer,
-    watchSignal     = watchSignal,
+    onReadable  = onReadable,
+    onWritable  = onWritable,
+    onTimer     = onTimer,
+    onSignal    = onSignal,
 };
 
