@@ -227,7 +227,7 @@ end
 
 --- runQueue
 -- @return nrunq
-function runQueue()
+local function runQueue()
     local rq = RQ;
 
     while rq.nqueue > 0 do
