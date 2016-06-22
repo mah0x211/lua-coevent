@@ -228,11 +228,15 @@ end
 --- defer
 -- @param fn
 local function deferCo( fn, ... )
-    if not ActiveCo then
-        error( 'cannot register the defer function at outside of runloop()' );
+    local co = ActiveCo;
+
+    if not co then
+        error( 'cannot register the defer function at outside of runloop()', 2 );
+    elseif type( fn ) ~= 'function' then
+        error( 'the defer function must be function', 2 );
     end
 
-    ActiveCo.deferCo = { fn, ... };
+    co.deferCo = { fn, ... };
 end
 
 
