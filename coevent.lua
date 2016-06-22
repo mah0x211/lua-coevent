@@ -41,6 +41,7 @@ local RunQ = require('coevent.runq');
 local OK = reco.OK;
 -- variables
 local EvLoop = assert( sentry.default() );
+local EvPool = setmetatable( {}, { __mode = 'k' } );
 local RQ;
 local ActiveCo;
 
@@ -56,7 +57,15 @@ local function on( asa, val, oneshot, edge )
     local co = ActiveCo;
 
     if co then
-        local ev, err = EvLoop:newevent();
+        local ev = next( EvPool );
+        local err;
+
+        -- remove from pool
+        if ev then
+            EvPool[ev] = nil;
+        else
+            ev, err = EvLoop:newevent();
+        end
 
         if not err then
             err = ev[asa]( ev, val, co, oneshot, edge );
@@ -127,6 +136,7 @@ local function dispose( co )
     -- unwatch all registered events
     for ev in pairs( co.events ) do
         ev:revert();
+        EvPool[ev] = true;
     end
 
     -- set nil to release references
