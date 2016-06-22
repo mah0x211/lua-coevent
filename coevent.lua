@@ -46,20 +46,20 @@ local ActiveCo;
 
 
 --- on
--- @param   co
 -- @param   asa
 -- @param   val
--- @param   ctx
 -- @param   oneshot
 -- @param   edge
 -- @return  ev
 -- @return  err
-local function on( co, asa, val, ctx, oneshot, edge )
+local function on( asa, val, oneshot, edge )
+    local co = ActiveCo;
+
     if co then
         local ev, err = EvLoop:newevent();
 
         if not err then
-            err = ev[asa]( ev, val, ctx, oneshot, edge );
+            err = ev[asa]( ev, val, co, oneshot, edge );
             if not err then
                 co.nevent = co.nevent + 1;
                 co.events[ev] = true;
@@ -83,7 +83,7 @@ end
 -- @return  ev
 -- @return  err
 local function onSignal( signo, oneshot )
-    return watch( ActiveCo, 'assignal', signo, ActiveCo, oneshot );
+    return on( 'assignal', signo, oneshot );
 end
 
 
@@ -93,7 +93,7 @@ end
 -- @return  ev
 -- @return  err
 local function onTimer( ival, oneshot )
-    return watch( ActiveCo, 'astimer', ival, ActiveCo, oneshot );
+    return on( 'astimer', ival, oneshot );
 end
 
 
@@ -104,7 +104,7 @@ end
 -- @return  ev
 -- @return  err
 local function onWritable( fd, oneshot, edge )
-    return watch( ActiveCo, 'aswritable', fd, ActiveCo, oneshot, edge );
+    return on( 'aswritable', fd, oneshot, edge );
 end
 
 
@@ -115,7 +115,7 @@ end
 -- @return  ev
 -- @return  err
 local function onReadable( fd, oneshot, edge )
-    return watch( ActiveCo, 'asreadable', fd, ActiveCo, oneshot, edge );
+    return on( 'asreadable', fd, oneshot, edge );
 end
 
 
@@ -135,9 +135,10 @@ local function dispose( co )
     RQ:remove( co );
 
     -- run deferCo function
-    if co.deferCo then
-        local ok, err = pcall( unpack( co.deferCo ) );
+    if deferCo then
+        local ok, err = pcall( unpack( deferCo ) );
 
+        co.deferCo = nil;
         if not ok then
             error( err );
         end
