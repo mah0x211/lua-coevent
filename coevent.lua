@@ -43,6 +43,7 @@ local YIELD = thread.YIELD;
 -- variables
 local EvLoop = assert( sentry.default() );
 local EvPool = setmetatable( {}, { __mode = 'k' } );
+local CoPool = setmetatable( {}, { __mode = 'k' } );
 local RQ;
 local ActiveCo;
 
@@ -144,6 +145,7 @@ local function dispose( co )
     co.ctx = nil;
     co.errfn = nil;
     co.events = nil;
+    CoPool[co] = true;
     -- remove coroutine from RunQ
     RQ:remove( co );
 
@@ -204,7 +206,14 @@ end
 -- @param ctx
 -- @param errfn
 local function spawn( fn, ctx, errfn )
-	local co = newthread( fn, ctx );
+    local co = next( CoPool );
+
+    if co then
+        CoPool[co] = nil;
+        co:init( fn, ctx );
+    else
+	    co = newthread( fn, ctx );
+    end
 
     -- append management fields
     co.errfn = errfn or defaultErrorFn;
