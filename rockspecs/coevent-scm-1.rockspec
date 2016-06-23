@@ -18,6 +18,7 @@ build = {
     type = "builtin",
     modules = {
         coevent = "coevent.lua",
-        ['coevent.runq'] = "lib/runq.lua"
+        ['coevent.runq'] = "lib/runq.lua",
+        ['coevent.thread'] = "lib/thread.lua"
     }
 }
