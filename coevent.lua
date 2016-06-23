@@ -49,6 +49,32 @@ local RQ;
 local ActiveCo;
 
 
+--- revoke
+-- @param   id
+-- @return  ok
+local function revoke( id )
+    local co = ActiveCo;
+
+    if co then
+        local ev = co.evids[id];
+
+        if ev then
+            ev:revert();
+            co.events[ev], co.evids[id] = nil, nil;
+            co.bitvec:unset( id );
+            -- push to event pool
+            EvPool[ev] = true;
+
+            return true;
+        end
+
+        return false;
+    else
+        error( 'cannot revoke an event at outside of runloop()', 2 );
+    end
+end
+
+
 --- on
 -- @param   asa
 -- @param   val
@@ -328,12 +354,13 @@ return {
     EV_TIMER    = sentry.EV_TIMER,
     EV_SIGNAL   = sentry.EV_SIGNAL,
     -- event functions
-    runloop         = runloop,
-    spawn           = spawn,
-    deferCo         = deferCo,
+    runloop     = runloop,
+    spawn       = spawn,
+    deferCo     = deferCo,
     onReadable  = onReadable,
     onWritable  = onWritable,
     onTimer     = onTimer,
     onSignal    = onSignal,
+    revoke      = revoke,
 };
 
