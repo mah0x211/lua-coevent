@@ -28,6 +28,7 @@
 
 -- assign to local
 local inspect = require('util').inspect;
+local bitvec = require('bitvec');
 local sentry = require('sentry');
 local thread = require('coevent.thread');
 local newthread = thread.new;
@@ -53,7 +54,7 @@ local ActiveCo;
 -- @param   val
 -- @param   oneshot
 -- @param   edge
--- @return  ev
+-- @return  id
 -- @return  err
 local function on( asa, val, oneshot, edge )
     local co = ActiveCo;
@@ -72,12 +73,15 @@ local function on( asa, val, oneshot, edge )
         if not err then
             err = ev[asa]( ev, val, co, oneshot, edge );
             if not err then
+                local id = co.bitvec:ffz();
+
+                co.bitvec:set( id );
                 co.nevent = co.nevent + 1;
-                co.events[ev] = true;
+                co.events[ev], co.evids[id] = id, ev;
                 -- remove from RunQ
                 RQ:remove( co );
 
-                return ev;
+                return id;
             end
         end
 
@@ -134,16 +138,19 @@ end
 -- @param coroutine
 local function dispose( co )
     local deferCo = co.deferCo;
+    local evids = co.evids;
 
     -- unwatch all registered events
-    for ev in pairs( co.events ) do
+    for ev, id in pairs( co.events ) do
         ev:revert();
+        evids[id] = nil;
         EvPool[ev] = true;
     end
 
     -- set nil to release references
     co.ctx = nil;
     co.errfn = nil;
+    co.evids = nil;
     co.events = nil;
     CoPool[co] = true;
     -- remove coroutine from RunQ
@@ -217,6 +224,8 @@ local function spawn( fn, ctx, errfn )
     -- append management fields
     co.errfn = errfn or defaultErrorFn;
     co.nevent = 0;
+    co.bitvec = bitvec.new();
+    co.evids = {};
     co.events = {};
     -- add to runq
     RQ:add( co );
@@ -270,7 +279,7 @@ local function runloop( fn, ctx, errfn )
     -- create new coroutine
     err = spawn( fn, ctx, errfn );
     if not err then
-        local nrunq, nevt, ev, evtype, ishup, co, disabled;
+        local nrunq, nevt, ev, ishup, co, disabled, id, _;
 
         -- have events
         repeat
@@ -285,17 +294,20 @@ local function runloop( fn, ctx, errfn )
                 break;
             -- consuming events
             elseif nevt > 0 then
-                ev, evtype, ishup, co, disabled = EvLoop:getevent();
+                ev, _, ishup, co, disabled = EvLoop:getevent();
                 while ev do
+                    id = co.events[ev];
                     -- remove disabled event object
                     if disabled then
-                        co.events[ev] = nil;
+                        co.events[ev], co.evids[id] = nil, nil;
                         co.nevent = co.nevent - 1;
+                        -- push to event pool
                         ev:revert();
+                        EvPool[ev] = true;
                     end
-                    invoke( co, ev, evtype, ishup );
+                    invoke( co, id, ishup );
                     -- get next event
-                    ev, evtype, ishup, co = EvLoop:getevent();
+                    ev, _, ishup, co, disabled = EvLoop:getevent();
                 end
             end
 
