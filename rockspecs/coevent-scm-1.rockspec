@@ -12,7 +12,6 @@ description = {
 dependencies = {
     "lua >= 5.1",
     "bitvec >= 1.2.0",
-    "reco >= 1.4.0",
     "sentry >= 0.4.1",
 }
 build = {
