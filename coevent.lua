@@ -27,7 +27,6 @@
 --]]
 
 -- assign to local
-local inspect = require('util').inspect;
 local bitvec = require('bitvec');
 local sentry = require('sentry');
 local thread = require('coevent.thread');
@@ -40,7 +39,6 @@ local RunQ = require('coevent.runq');
 -- constants
 -- coroutine status
 local OK = thread.OK;
-local YIELD = thread.YIELD;
 -- variables
 local EvLoop = assert( sentry.default() );
 local EvPool = setmetatable( {}, { __mode = 'k' } );
