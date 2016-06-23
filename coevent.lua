@@ -29,8 +29,8 @@
 -- assign to local
 local inspect = require('util').inspect;
 local sentry = require('sentry');
-local reco = require('reco');
-local newco = reco.new;
+local thread = require('coevent.thread');
+local newthread = thread.new;
 local pcall = pcall;
 local pairs = pairs;
 local unpack = unpack or table.unpack;
@@ -38,7 +38,8 @@ local setmetatable = setmetatable;
 local RunQ = require('coevent.runq');
 -- constants
 -- coroutine status
-local OK = reco.OK;
+local OK = thread.OK;
+local YIELD = thread.YIELD;
 -- variables
 local EvLoop = assert( sentry.default() );
 local EvPool = setmetatable( {}, { __mode = 'k' } );
@@ -140,6 +141,8 @@ local function dispose( co )
     end
 
     -- set nil to release references
+    co.ctx = nil;
+    co.errfn = nil;
     co.events = nil;
     -- remove coroutine from RunQ
     RQ:remove( co );
@@ -167,38 +170,31 @@ end
 -- @param co
 -- @param ...
 local function invoke( co, ... )
-    local rv;
+    local rc, err, trace;
 
     ActiveCo = co;
-    -- invoke coroutine with context
-    if co.status == OK then
-        rv = { co( co.ctx, ... ) };
-    -- invoke coroutine without context
-    else
-        rv = { co( ... ) };
-    end
+    rc, err, trace = co( ... );
     ActiveCo = nil;
 
-    -- success
-    if rv[1] then
-        -- dispose coroutine if finished
-        if co.status == OK then
-            dispose( co );
-        elseif co.nevent == 0 then
-            RQ:add( co );
-        end
     -- got error
-    else
-        -- invoke error function
-        local ok, err = pcall( co.errfn, co.ctx, rv[2], rv[3], rv[4] );
+    if err then
+        local errerr;
 
+        -- invoke error function
+        ok, errerr = pcall( co.errfn, co.ctx, err, trace );
         -- invoke default error function
         if not ok then
-            defaultErrorFn( err, rv[2], rv[3], rv[4] );
+            defaultErrorFn( errerr, err, trace );
         end
 
-        -- dispose coroutine
+        -- dispose coroutine with error
         dispose( co );
+    -- dispose coroutine if finished
+    elseif rc == OK then
+        dispose( co );
+    -- add to the run queue
+    elseif co.nevent == 0 then
+        RQ:add( co );
     end
 end
 
@@ -207,21 +203,15 @@ end
 -- @param fn
 -- @param ctx
 -- @param errfn
--- @return err
 local function spawn( fn, ctx, errfn )
-    local co, err = newco( fn );
+	local co = newthread( fn, ctx );
 
-    if not err then
-        -- append management fields
-        co.ctx = ctx;
-        co.errfn = errfn or defaultErrorFn;
-        co.nevent = 0;
-        co.events = {};
-        -- add to runq
-        RQ:add( co );
-    end
-
-    return err;
+    -- append management fields
+    co.errfn = errfn or defaultErrorFn;
+    co.nevent = 0;
+    co.events = {};
+    -- add to runq
+    RQ:add( co );
 end
 
 
