@@ -180,10 +180,9 @@ local function invoke( co, ... )
 
     -- got error
     if err then
-        local errerr;
-
         -- invoke error function
-        ok, errerr = pcall( co.errfn, co.ctx, err, trace );
+        local ok, errerr = pcall( co.errfn, co.ctx, err, trace );
+
         -- invoke default error function
         if not ok then
             defaultErrorFn( errerr, err, trace );
