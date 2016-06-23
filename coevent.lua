@@ -250,7 +250,7 @@ local function runQueue()
         end
 
         if #EvLoop > 0 then
-            break;
+            return rq.nqueue;
         end
     end
 
